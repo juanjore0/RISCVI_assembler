@@ -1,5 +1,24 @@
-sub x10, x8, x1       
-sub x11, x7, x2       
-# ---------- Subrutina sum ----------
-add x7, x5, x4       
-add x8, x3, x2        
+    jal x0, main          # Saltar al inicio del programa
+
+resta:
+    sub x10, x8, x1       # x10 = x8 - x1
+    sub x11, x7, x2       # x11 = x7 - x2
+    jalr x9               # Regresa a la instrucción después del jal que llamó a resta
+
+sum:
+    add x7, x5, x4        # x7 = x5 + x4
+    add x8, x3, x2        # x8 = x3 + x2
+    jal x9, resta         # Llamar a resta
+    jalr x6               # Regresa a quien llamó a sum
+
+main:
+    addi x1, x0, 1
+    addi x2, x0, 2
+    addi x3, x0, 3
+    addi x4, x0, 4
+    addi x5, x0, 5
+    jal x6, sum           # Llamar a sum
+    jal x0, fin           # Salto incondicional (no retorna)
+
+fin:
+    add x12, x11, x10     # x12 = x11 + x10
