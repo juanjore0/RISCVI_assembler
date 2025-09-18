@@ -1,4 +1,3 @@
-
 import os
 from sly import Parser
 from Lexer import RISCVLexer
