@@ -1,201 +1,142 @@
 import os
 from sly import Parser
-from Lexer import RISCVLexer
+from lexer import RISCVLexer
 from diccionarios import ins_type_R, ins_type_I, ins_type_S, ins_type_U, ins_type_B, ins_type_J, Registros
-from parserlabel import parserlabel
+from parserlabel import ParserLabel
 
+# Variable global para el contador de línea
 count_line = 0
 
-def offsen(label_name, label_dict):
-    offset = label_dict[label_name] - count_line
-    return offset
-
-def numbits(offset, bits):
-    if offset >= 0:
-        return format(offset, f'0{bits}b')
-    else:
-        num = format(offset * -1, f'0{bits}b')
-        num = num.replace('0', '2')
-        num = num.replace('1', '0')
-        num = num.replace('2', '1')
-        num = int(num, 2) + 1
-        return format(num, f'0{bits}b')
-
 def num_binary(numero, bits):
+    """
+    Convierte un número entero a su representación binaria de 'bits' de longitud.
+    Maneja tanto números positivos como negativos (utilizando complemento a dos).
+    """
     if numero >= 0:
-        binary = bin(numero)[2:].zfill(bits)
+        return bin(numero)[2:].zfill(bits)
     else:
-        binary = bin(2**bits + numero)[2:]
-    return binary
+        # Complemento a dos para números negativos
+        return bin(2**bits + numero)[2:]
 
 class RISCVParser(Parser):
-
-    # Importa los tokens definidos en tu lexer
     tokens = RISCVLexer.tokens
 
     def __init__(self, label_dict):
         super().__init__()
-        self.label_dict = label_dict  # Usa el diccionario de etiquetas que proviene del primer parser
+        self.label_dict = label_dict
 
-    # Regla inicial
-    @_('program')
-    def statement(self, p):
-        return p.program
-
-    # Regla para un programa, que puede contener múltiples líneas
-    @_('line NEWLINE program')
+    # Reglas para un programa completo
+    @_('line program')
     def program(self, p):
         return [p.line] + p.program
 
-    @_('line NEWLINE')
+    @_('line')
     def program(self, p):
         return [p.line]
     
-    @_('NEWLINE program')
-    def program(self, p):
-        return [p.NEWLINE] + p.program
-
-    #Regla para una línea, que puede ser una etiqueta, una instrucción o un comentario
-    @_('LABEL')
+    # Reglas para una sola línea (instrucción, etiqueta o comentario)
+    @_('LABEL COLON')
     def line(self, p):
         return ('label', p.LABEL)
-    
-    @_('INS_TYPE_R REGISTER COMMA REGISTER COMMA REGISTER')
+        
+    @_('INSTRUCION_TYPE_R REGISTER COMMA REGISTER COMMA REGISTER')
     def line(self, p):
-        ins_info = ins_type_R[p.INS_TYPE_R]
-        opcode = ins_info['opcode']
-        funct3 = ins_info['funct3']
-        funct7 = ins_info['funct7']
-        rd = Registros(p.REGISTER0)    
+        global count_line
+        ins_info = ins_type_R[p.INSTRUCION_TYPE_R]
+        rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
         rs2 = Registros(p.REGISTER2)
-        binary_instruction = f"{funct7}{rs2}{rs1}{funct3}{rd}{opcode}"
-        global count_line
-        count_line = count_line + 4
-        return ('instruction_r',binary_instruction)
+        binary_instruction = f"{ins_info['funct7']}{rs2}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_r', binary_instruction)
     
-    @_('INS_TYPE_I REGISTER COMMA REGISTER COMMA INTEGER')
+    @_('INSTRUCION_TYPE_I REGISTER COMMA REGISTER COMMA NUMBER')
     def line(self, p):
-        ins_info = ins_type_I[p.INS_TYPE_I]
-        opcode = ins_info['opcode']
-        funct3 = ins_info['funct3']
+        global count_line
+        ins_info = ins_type_I[p.INSTRUCION_TYPE_I]
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
-        #imm = format(int(p.INTEGER), '012b')  
-        imm = num_binary(int(p.INTEGER), 12)
-        binary_instruction = f"{imm}{rs1}{funct3}{rd}{opcode}"
-        global count_line
-        count_line = count_line + 4
-        return ('instruction_i',binary_instruction)
+        imm = num_binary(int(p.NUMBER), 12)
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
     
-    @_('INS_TYPE_I_LOAD REGISTER COMMA INTEGER LPAREN REGISTER RPAREN')
+    @_('INSTRUCION_TYPE_I_LOAD REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
     def line(self, p):
-        ins_info = ins_type_I[p.INS_TYPE_I_LOAD]
-        opcode = ins_info['opcode']
-        funct3 = ins_info['funct3']
+        global count_line
+        ins_info = ins_type_I[p.INSTRUCION_TYPE_I_LOAD]
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
-        #imm = format(int(p.INTEGER), '012b')  
-        imm = num_binary(int(p.INTEGER), 12)
-        binary_instruction = f"{imm}{rs1}{funct3}{rd}{opcode}"
-        global count_line
-        count_line = count_line + 4
-        return ('instruction_i',binary_instruction)
+        imm = num_binary(int(p.NUMBER), 12)
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
     
-    @_('INS_TYPE_S REGISTER COMMA INTEGER LPAREN REGISTER RPAREN')
+    @_('INSTRUCION_TYPE_S REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
     def line(self, p):
-        ins_info = ins_type_S[p.INS_TYPE_S]
-        opcode = ins_info['opcode']
-        funct3 = ins_info['funct3']
+        global count_line
+        ins_info = ins_type_S[p.INSTRUCION_TYPE_S]
         rs1 = Registros(p.REGISTER1)
         rs2 = Registros(p.REGISTER0)
-        #imm = format(int(p.INTEGER), '012b')  
-        imm = num_binary(int(p.INTEGER), 12)
-        imm1 = imm[7:]
-        imm2 = imm[:7]
-        binary_instruction = f"{imm2}{rs2}{rs1}{funct3}{imm1}{opcode}"
-        global count_line
-        count_line = count_line + 4
-        return ('instruction_s',binary_instruction)
+        imm = num_binary(int(p.NUMBER), 12)
+        imm_high = imm[:7]  # Bits 11 a 5
+        imm_low = imm[7:]   # Bits 4 a 0
+        binary_instruction = f"{imm_high}{rs2}{rs1}{ins_info['funct3']}{imm_low}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_s', binary_instruction)
     
-    @_('INS_TYPE_U REGISTER COMMA INTEGER')
+    @_('INSTRUCION_TYPE_U REGISTER COMMA NUMBER')
     def line(self, p):
-        ins_info = ins_type_U[p.INS_TYPE_U]
-        opcode = ins_info['opcode']
+        global count_line
+        ins_info = ins_type_U[p.INSTRUCION_TYPE_U]
         rd = Registros(p.REGISTER)
-        #imm = format(int(p.INTEGER), '020b')  
-        imm = num_binary(int(p.INTEGER), 20)
-        binary_instruction = f"{imm}{rd}{opcode}"
-        global count_line
-        count_line = count_line + 4
-        return ('instruction_u',binary_instruction)
+        imm = num_binary(int(p.NUMBER), 20)
+        binary_instruction = f"{imm}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_u', binary_instruction)
     
-    @_('INS_TYPE_B REGISTER COMMA REGISTER COMMA LABEL')
+    @_('INSTRUCION_TYPE_B REGISTER COMMA REGISTER COMMA LABEL')
     def line(self, p):
-        ins_info = ins_type_B[p.INS_TYPE_B]
-        opcode = ins_info['opcode']
-        funct3 = ins_info['funct3']
+        global count_line
+        ins_info = ins_type_B[p.INSTRUCION_TYPE_B]
         rs1 = Registros(p.REGISTER0)
         rs2 = Registros(p.REGISTER1)
-        offset = offsen(p.LABEL, self.label_dict)
-        imm = numbits(offset, 13)
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        # Extraer los bits del inmediato para el formato B
         imm12 = imm[0]
         imm11 = imm[1]
-        imm10 = imm[2]
-        imm9 = imm[3]
-        imm8 = imm[4]
-        imm7 = imm[5]
-        imm6 = imm[6]
-        imm5 = imm[7]
-        imm4 = imm[8]
-        imm3 = imm[9]
-        imm2 = imm[10]
-        imm1 = imm[11]
-        binary_instruction = f"{imm12}{imm10}{imm9}{imm8}{imm7}{imm6}{imm5}{rs2}{rs1}{funct3}{imm4}{imm3}{imm2}{imm1}{imm11}{opcode}"
-        global count_line
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
         count_line += 4
         return ('instruction_b', binary_instruction)
     
-    @_('INS_TYPE_J REGISTER COMMA LABEL')
+    @_('INSTRUCION_TYPE_J REGISTER COMMA LABEL')
     def line(self, p):
-        ins_info = ins_type_J[p.INS_TYPE_J]
-        opcode = ins_info['opcode']
-        rd = Registros(p.REGISTER)
-        offset = offsen(p.LABEL, self.label_dict)
-        imm = numbits(offset, 21)
-        imm20 = imm[0]
-        imm19 = imm[1]
-        imm18 = imm[2]
-        imm17 = imm[3]
-        imm16 = imm[4]
-        imm15 = imm[5]
-        imm14 = imm[6]
-        imm13 = imm[7]
-        imm12 = imm[8]
-        imm11 = imm[9]
-        imm10 = imm[10]
-        imm9 = imm[11]
-        imm8 = imm[12]
-        imm7 = imm[13]
-        imm6 = imm[14]
-        imm5 = imm[15]
-        imm4 = imm[16]
-        imm3 = imm[17]
-        imm2 = imm[18]
-        imm1 = imm[19]
-        binary_instruction = f"{imm20}{imm10}{imm9}{imm8}{imm7}{imm6}{imm5}{imm4}{imm3}{imm2}{imm1}{imm11}{imm19}{imm18}{imm17}{imm16}{imm15}{imm14}{imm13}{imm12}{rd}{opcode}"
         global count_line
+        ins_info = ins_type_J[p.INSTRUCION_TYPE_J]
+        rd = Registros(p.REGISTER)
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 21)
+        # Extraer los bits del inmediato para el formato J
+        imm20 = imm[0]
+        imm10_1 = imm[10:20]
+        imm11 = imm[9]
+        imm19_12 = imm[1:9]
+        
+        binary_instruction = f"{imm20}{imm10_1}{imm11}{imm19_12}{rd}{ins_info['opcode']}"
         count_line += 4
         return ('instruction_j', binary_instruction)
 
     @_('COMMENT')
     def line(self, p):
         return ('comment', p.COMMENT)
-    
-    # Ignorar líneas en blanco
+
     @_('NEWLINE')
     def line(self, p):
-        return None  # Retorna None para líneas en blanco 
+        return None
 
     def error(self, p):
         if p is not None:
@@ -204,28 +145,28 @@ class RISCVParser(Parser):
             print(f"Error sintáctico: Token inesperado al final del archivo")
 
 if __name__ == '__main__':
-
-    label_parser = parserlabel()
+    label_parser = ParserLabel()
     input_file_path = 'archivo.s48'
     output_file_path = 'instrucciones.txt'
+    
+    # Restablecer count_line antes de la primera pasada
+    count_line = 0
     dict_label = label_parser.get_labels(input_file_path)
 
-    with open(input_file_path, 'r') as archivo:
-        lineas = archivo.readlines()
-
-    lexer = RISCVLexer()                                 
+    lexer = RISCVLexer()
     parser = RISCVParser(dict_label)
 
-    # Crear una lista para almacenar las instrucciones
-    instrucciones = []
+    # Procesar todo el archivo a la vez
+    with open(input_file_path, 'r') as archivo:
+        full_text = archivo.read()
+    
+    ast = parser.parse(lexer.tokenize(full_text))
 
-    for linea in lineas:                              
-        ast = parser.parse(lexer.tokenize(linea))
-        
-        if ast is not None:
-            instrucciones.extend(ast)
+    if ast is not None:
+        instrucciones = ast
+    else:
+        instrucciones = []
 
-    # Abre el archivo de salida en modo escritura
     with open(output_file_path, 'w') as output_file:
         for instruccion in instrucciones:
             if instruccion is not None:
@@ -236,15 +177,12 @@ if __name__ == '__main__':
         print(f"Total de instrucciones: {count_line // 4}")
         if count_line // 4 < 1024:
             for i in range((1024 - count_line // 4)):
-                if(i == (1024 - count_line // 4)-1):
+                if (i == (1024 - count_line // 4) - 1):
                     output_file.write(f"00000000000000000000000000000000")
                 else:
                     output_file.write(f"00000000000000000000000000000000\n")
 
-    # Cierra el archivo de salida
     print(f"Instrucciones guardadas en {output_file_path}")
-
-    # Imprime el diccionario de etiquetas
     print("Diccionario de Etiquetas:")
     for label, line_number in dict_label.items():
         print(f"{label}: {line_number}")

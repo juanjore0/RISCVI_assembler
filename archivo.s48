@@ -1,0 +1,5 @@
+sub x10, x8, x1       
+sub x11, x7, x2       
+# ---------- Subrutina sum ----------
+add x7, x5, x4       
+add x8, x3, x2        

@@ -1,5 +1,5 @@
 def main(asm_file, hex_file, bin_file):
-    lexer = RV32ILexer()
+    lexer = RISCVLexer()
     parser = RV32IParser()
 
     with open(asm_file, 'r') as f:
