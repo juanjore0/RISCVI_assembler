@@ -90,3 +90,17 @@ class RV32ILexer(Lexer):
     def error(self, t):
         print(f"Illegal character '{t.value[0]}' at line {self.lineno}")
         self.index += 1
+
+
+if __name__ == "__main__":
+    data = """
+    .text
+    main:
+        addi x1, x2, 10
+        lw x3, 0(x1)
+        sw x3, 4(x2) # store word
+    """
+
+    lexer = RV32ILexer()
+    for tok in lexer.tokenize(data):
+        print(f"type={tok.type}, value={tok.value}, lineno={tok.lineno}, index={tok.index}")
