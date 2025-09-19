@@ -60,7 +60,7 @@ class RISCVParser(Parser):
     def line(self, p):
         global count_line
         ins_info = ins_type_I[p.INSTRUCTION_TYPE_I]
-        rd = Regi(p.REGISTER0stros)
+        rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
         imm = num_binary(int(p.NUMBER), 12)
         binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
@@ -81,10 +81,13 @@ class RISCVParser(Parser):
     @_('INSTRUCTION_TYPE_I_CB')
     def line(self, p):
         global count_line
-        ins_info = ins_type_I[p.INSTRUCTION_TYPE_I]
-        rd = 00000
-        rs1 = 00000
-        imm = num_binary(int(p.ins_info['funct7']), 12)
+        ins_info = ins_type_I[p.INSTRUCTION_TYPE_I_CB]  # Cambiar de INSTRUCTION_TYPE_CB a INSTRUCTION_TYPE_I_CB
+        
+        # Para ebreak y ecall, todos los campos son fijos según la especificación RISC-V
+        rd = "00000"    # rd = x0
+        rs1 = "00000"   # rs1 = x0  
+        imm = ins_info['imm']  # El valor inmediato específico (ebreak=1, ecall=0)
+        
         binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
         count_line += 4
         return ('instruction_i', binary_instruction)
