@@ -1,4 +1,3 @@
-# HECHO POR LUISA FERNAINDA RAMIREZ Y BRAYAN CATAÑO GIRALDO
 from sly import Lexer
 
 class RISCVLexer(Lexer):
