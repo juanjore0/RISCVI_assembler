@@ -8,9 +8,7 @@ ins_type_R = {
     'srl': {'funct7': '0000000','funct3': '101','opcode': '0110011'},
     'sra': {'funct7': '0100000','funct3': '101','opcode': '0110011'},
     'slt': {'funct7': '0000000','funct3': '010','opcode': '0110011'},
-    'sltu': {'funct7': '0000000','funct3': '011','opcode': '0110011'},
-    'mul': {'funct7': '0000001','funct3': '000','opcode': '0110011'},
-    'div': {'funct7': '0000001','funct3': '100','opcode': '0110011'}
+    'sltu': {'funct7': '0000000','funct3': '011','opcode': '0110011'}
 }
 
 ins_type_I = {
@@ -29,6 +27,8 @@ ins_type_I = {
     'lhu': {'funct3': '101','opcode': '0000011'},
     'lbu': {'funct3': '100','opcode': '0000011'},
     'jalr': {'funct3': '000','opcode': '1100111'},
+    'ecall': {'funct3': '000','opcode': '1110011'},
+    'ebreak': {'funct3': '000','opcode': '1110011'}
 }
 
 ins_type_S = {

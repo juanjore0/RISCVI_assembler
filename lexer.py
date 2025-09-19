@@ -9,7 +9,7 @@ class RISCVLexer(Lexer):
     }
 
     # Definir tokens utilizando expresiones regulares
-    INSTRUCION_TYPE_R = r'\b(add|sub|xor|or|and|sll|srl|sra|slt|sltu|mul|div)\b'
+    INSTRUCION_TYPE_R = r'\b(add|sub|xor|or|and|sll|srl|sra|slt|sltu)\b'
     INSTRUCION_TYPE_I = r'\b(addi|xori|ori|andi|slli|srli|srai|slti|sltiu|jalr)\b'
     INSTRUCION_TYPE_I_LOAD = r'\b(lb|lh|lw|lhu|lbu)\b'
     INSTRUCION_TYPE_S = r'\b(sb|sh|sw)\b'
