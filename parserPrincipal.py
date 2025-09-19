@@ -33,11 +33,7 @@ class RISCVParser(Parser):
     @_('line')
     def program(self, p):
         return [p.line]
-    
-    @_('')
-    def program(self, p):
-        return []
-    
+
     # Reglas para una sola línea (instrucción, etiqueta o comentario)
     
     # Directivas

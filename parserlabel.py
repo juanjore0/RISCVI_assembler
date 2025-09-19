@@ -22,10 +22,6 @@ class ParserLabel(Parser):
     def program(self, p):
         return [p.line]
 
-    @_('')
-    def program(self, p):
-        return []
-
     # ----------- Reglas de línea -----------
 
     # Directivas - agregar regla para manejar .text y .data
