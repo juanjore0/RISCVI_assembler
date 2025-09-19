@@ -1,34 +1,41 @@
+from lexer import RISCVLexer
+from parserPrincipal import RISCVParser
+from parserlabel import ParserLabel
+
 def main(asm_file, hex_file, bin_file):
+
+    #primera pasada
+    label_parser = ParserLabel()
+    symbol_table = label_parser.get_labels(asm_file)
+    print("pass 1 complete. Symbol Table:")
+    print(symbol_table)
+
+    #segunda pasada
     lexer = RISCVLexer()
-    parser = RV32IParser()
+    parser = RISCVParser(symbol_table)
 
     with open(asm_file, 'r') as f:
         source_code = f.read()
 
-    try:
-        # Pass 1: Build Symbol Table
-        tokens = lexer.tokenize(source_code)
-        parser.parse(tokens, pass_number=1, start_address=0)
-        print("Pass 1 complete. Symbol Table:")
-        print(parser.symbol_table)
-        
-        # Reset and Pass 2: Generate Machine Code
-        tokens = lexer.tokenize(source_code)
-        machine_code = parser.parse(tokens, pass_number=2, start_address=0)
-        
-        # Write outputs
-        with open(hex_file, 'w') as f_hex, open(bin_file, 'w') as f_bin:
-            for instruction_code in machine_code:
-                # Assume instruction_code is a 32-bit integer
-                hex_str = f"{instruction_code:08x}\n"
-                bin_str = f"{instruction_code:032b}\n"
-                f_hex.write(hex_str)
-                f_bin.write(bin_str)
+    tokens = lexer.tokenize(source_code)
+    ast = parser.parse(tokens)
 
-        print(f"Assembly complete. Output files: {hex_file}, {bin_file}")
+    machine_code = []
+    for instr in ast:
+        if instr and instr[0].startswith("instruction_"):
+            # convierto de string binario a entero
+            bin_str = instr[1]
+            instruction_code = int(bin_str, 2)
+            machine_code.append(instruction_code)
 
-    except Exception as e:
-        print(f"Error during assembly: {e}")
+    # Guardar resultados
+    with open(hex_file, 'w') as f_hex, open(bin_file, 'w') as f_bin:
+        for instruction_code in machine_code:
+            f_hex.write(f"{instruction_code:08x}\n")
+            f_bin.write(f"{instruction_code:032b}\n")
+
+    print(f"Assembly complete. Output files: {hex_file}, {bin_file}")
+
 
 if __name__ == "__main__":
     import sys
