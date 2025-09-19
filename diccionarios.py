@@ -26,9 +26,7 @@ ins_type_I = {
     'lw': {'funct3': '010','opcode': '0000011'},
     'lhu': {'funct3': '101','opcode': '0000011'},
     'lbu': {'funct3': '100','opcode': '0000011'},
-    'jalr': {'funct3': '000','opcode': '1100111'},
-    'ecall': {'funct3': '000','opcode': '1110011'},
-    'ebreak': {'funct3': '000','opcode': '1110011'}
+    'jalr': {'funct3': '000','opcode': '1100111'}
 }
 
 ins_type_S = {
