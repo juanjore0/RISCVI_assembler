@@ -34,7 +34,17 @@ class RISCVParser(Parser):
     def program(self, p):
         return [p.line]
     
+    @_('')
+    def program(self, p):
+        return []
+    
     # Reglas para una sola línea (instrucción, etiqueta o comentario)
+    
+    # Directivas
+    @_('DIRECTIVE')
+    def line(self, p):
+        return ('directive', p.DIRECTIVE)
+
     @_('LABEL COLON')
     def line(self, p):
         return ('label', p.LABEL)
@@ -129,10 +139,6 @@ class RISCVParser(Parser):
         binary_instruction = f"{imm20}{imm10_1}{imm11}{imm19_12}{rd}{ins_info['opcode']}"
         count_line += 4
         return ('instruction_j', binary_instruction)
-
-    @_('COMMENT')
-    def line(self, p):
-        return ('comment', p.COMMENT)
 
     @_('NEWLINE')
     def line(self, p):

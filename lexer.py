@@ -3,8 +3,9 @@ from sly import Lexer
 class RISCVLexer(Lexer):
     # Definición de los tokens
     tokens = {
-        INSTRUCION_TYPE_R, INSTRUCION_TYPE_I, INSTRUCION_TYPE_I_LOAD, INSTRUCION_TYPE_B, INSTRUCION_TYPE_S, INSTRUCION_TYPE_U, INSTRUCION_TYPE_J,
-        COMMA, REGISTER, NUMBER, COMMENT, NEWLINE, LPAREN, RPAREN, LABEL, COLON, DIRECTIVE
+        INSTRUCION_TYPE_R, INSTRUCION_TYPE_I, INSTRUCION_TYPE_I_LOAD, INSTRUCION_TYPE_B, 
+        INSTRUCION_TYPE_S, INSTRUCION_TYPE_U, INSTRUCION_TYPE_J,
+        COMMA, REGISTER, NUMBER, NEWLINE, LPAREN, RPAREN, LABEL, COLON, DIRECTIVE
     }
 
     # Definir tokens utilizando expresiones regulares
@@ -25,10 +26,10 @@ class RISCVLexer(Lexer):
     REGISTER = r'\b(zero|ra|sp|gp|tp|t0|t1|t2|s0|s1|a0|a1|a2|a3|a4|a5|a6|a7|s2|s3|s4|s5|s6|s7|s8|s9|s10|s11|t3|t4|t5|t6|x[0-9]{1,2})\b'
     NUMBER = r'0x[0-9a-fA-F]+|-?[0-9]+'
     LABEL = r'[a-zA-Z_][a-zA-Z0-9_]*'
-    COMMENT = r'#.*'
 
-    # Ignorar espacios en blanco y tabulaciones
+    # Ignorar espacios en blanco, tabulaciones y comentarios
     ignore = ' \t'
+    ignore_comment = r'#.*'
   
     # --- Alias ---
     aliases = {
@@ -66,7 +67,8 @@ class RISCVLexer(Lexer):
     @_(r'\n+')
     def NEWLINE(self, t):
         self.lineno += t.value.count('\n')
-        
+        return t
+    
     # Manejo de errores de caracteres ilegales
     def error(self, t):
         print(f"Illegal character '{t.value[0]}' at line {self.lineno}")

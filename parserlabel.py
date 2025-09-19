@@ -14,18 +14,27 @@ class ParserLabel(Parser):
     def statement(self, p):
         return p.program
 
-    @_('line NEWLINE program')
+    @_('line program')
     def program(self, p):
         return [p.line] + p.program
 
-    @_('line NEWLINE')
+    @_('line')
     def program(self, p):
         return [p.line]
 
+    @_('')
+    def program(self, p):
+        return []
+
     # ----------- Reglas de línea -----------
 
-    # Solo etiqueta
-    @_('LABEL')
+    # Directivas - agregar regla para manejar .text y .data
+    @_('DIRECTIVE')
+    def line(self, p):
+        return ('directive', p.DIRECTIVE)
+
+    # Solo etiqueta con dos puntos
+    @_('LABEL COLON')
     def line(self, p):
         self.label_dict[p.LABEL] = self.count_line
         return ('label', p.LABEL)
@@ -42,7 +51,7 @@ class ParserLabel(Parser):
         self.count_line += 4
         return ('instruction_i', p.INSTRUCION_TYPE_I)
 
-    # Tipo I
+    # Tipo I Load
     @_('INSTRUCION_TYPE_I_LOAD REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
     def line(self, p):
         self.count_line += 4
@@ -72,12 +81,7 @@ class ParserLabel(Parser):
         self.count_line += 4
         return ('instruction_b', p.INSTRUCION_TYPE_B)
 
-    # Comentarios
-    @_('COMMENT')
-    def line(self, p):
-        return ('comment', p.COMMENT)
-
-    # Línea en blanco
+    # Líneas vacías
     @_('NEWLINE')
     def line(self, p):
         return None
@@ -95,7 +99,10 @@ class ParserLabel(Parser):
         
         # Necesitamos un nuevo analizador para la primera pasada
         parser_pass_one = ParserLabel()
-        parser_pass_one.parse(tokens)
+        try:
+            parser_pass_one.parse(tokens)
+        except Exception as e:
+            print(f"Error durante la primera pasada: {e}")
         
         return parser_pass_one.label_dict
 
