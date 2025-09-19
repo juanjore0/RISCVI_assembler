@@ -2,6 +2,7 @@ from lexer import RISCVLexer
 from parserPrincipal import RISCVParser
 from parserlabel import ParserLabel
 
+#python assembler.py programa.asm programa.hex programa.bin
 def main(asm_file, hex_file, bin_file):
 
     #primera pasada
