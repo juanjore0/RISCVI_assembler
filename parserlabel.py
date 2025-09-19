@@ -76,6 +76,20 @@ class ParserLabel(Parser):
     def line(self, p):
         self.count_line += 4
         return ('instruction_b', p.INSTRUCION_TYPE_B)
+    
+
+    #TIPO I (EBREAK,ECALL)
+    @_('EBREAK')
+    def line(self, p):
+        self.count_line += 4
+        return ('ebreak',p.INSTRUC)
+
+    @_('ECALL')
+    def line(self, p):
+        self.count_line += 4
+        return ('ecall',)
+
+
 
     # Líneas vacías
     @_('NEWLINE')
