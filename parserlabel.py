@@ -79,19 +79,10 @@ class ParserLabel(Parser):
     
 
     #TIPO I (EBREAK,ECALL)
-    @_('ECALL')
+    @_('INSTRUCTION_TYPE_I_CB')
     def line(self, p):
-        global count_line
-        binary_instruction = "00000000000000000000000001110011"
-        count_line += 4
-        return ('ecall', binary_instruction)
-
-    @_('EBREAK')
-    def line(self, p):
-        global count_line
-        binary_instruction = "00000000000100000000000001110011"
-        count_line += 4
-        return ('ebreak', binary_instruction)
+        self.count_line += 4
+        return ('instruction_i', p.INSTRUCTION_TYPE_I_CB)
 
     # Líneas vacías
     @_('NEWLINE')
