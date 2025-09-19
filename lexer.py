@@ -3,19 +3,19 @@ from sly import Lexer
 class RISCVLexer(Lexer):
     # Definición de los tokens
     tokens = {
-        INSTRUCION_TYPE_R, INSTRUCION_TYPE_I, INSTRUCION_TYPE_I_LOAD, INSTRUCION_TYPE_B, 
-        INSTRUCION_TYPE_S, INSTRUCION_TYPE_U, INSTRUCION_TYPE_J,
+        INSTRUCTION_TYPE_R, INSTRUCTION_TYPE_I, INSTRUCTION_TYPE_I_LOAD, INSTRUCTION_TYPE_B, 
+        INSTRUCTION_TYPE_S, INSTRUCTION_TYPE_U, INSTRUCTION_TYPE_J,
         COMMA, REGISTER, NUMBER, NEWLINE, LPAREN, RPAREN, LABEL, COLON, DIRECTIVE
     }
 
     # Definir tokens utilizando expresiones regulares
-    INSTRUCION_TYPE_R = r'\b(add|sub|xor|or|and|sll|srl|sra|slt|sltu)\b'
-    INSTRUCION_TYPE_I = r'\b(addi|xori|ori|andi|slli|srli|srai|slti|sltiu|jalr)\b'
-    INSTRUCION_TYPE_I_LOAD = r'\b(lb|lh|lw|lhu|lbu)\b'
-    INSTRUCION_TYPE_S = r'\b(sb|sh|sw)\b'
-    INSTRUCION_TYPE_B = r'\b(beq|bne|blt|bge|bltu|bgeu)\b'
-    INSTRUCION_TYPE_U = r'\b(lui|auipc)\b'
-    INSTRUCION_TYPE_J = r'\b(jal)\b'
+    INSTRUCTION_TYPE_R = r'\b(add|sub|xor|or|and|sll|srl|sra|slt|sltu)\b'
+    INSTRUCTION_TYPE_I = r'\b(addi|xori|ori|andi|slli|srli|srai|slti|sltiu|jalr)\b'
+    INSTRUCTION_TYPE_I_LOAD = r'\b(lb|lh|lw|lhu|lbu)\b'
+    INSTRUCTION_TYPE_S = r'\b(sb|sh|sw)\b'
+    INSTRUCTION_TYPE_B = r'\b(beq|bne|blt|bge|bltu|bgeu)\b'
+    INSTRUCTION_TYPE_U = r'\b(lui|auipc)\b'
+    INSTRUCTION_TYPE_J = r'\b(jal)\b'
     COMMA = r','
     LPAREN = r'\('
     RPAREN = r'\)'

@@ -45,10 +45,10 @@ class RISCVParser(Parser):
     def line(self, p):
         return ('label', p.LABEL)
         
-    @_('INSTRUCION_TYPE_R REGISTER COMMA REGISTER COMMA REGISTER')
+    @_('INSTRUCTION_TYPE_R REGISTER COMMA REGISTER COMMA REGISTER')
     def line(self, p):
         global count_line
-        ins_info = ins_type_R[p.INSTRUCION_TYPE_R]
+        ins_info = ins_type_R[p.INSTRUCTION_TYPE_R]
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
         rs2 = Registros(p.REGISTER2)
@@ -56,10 +56,10 @@ class RISCVParser(Parser):
         count_line += 4
         return ('instruction_r', binary_instruction)
     
-    @_('INSTRUCION_TYPE_I REGISTER COMMA REGISTER COMMA NUMBER')
+    @_('INSTRUCTION_TYPE_I REGISTER COMMA REGISTER COMMA NUMBER')
     def line(self, p):
         global count_line
-        ins_info = ins_type_I[p.INSTRUCION_TYPE_I]
+        ins_info = ins_type_I[p.INSTRUCTION_TYPE_I]
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
         imm = num_binary(int(p.NUMBER), 12)
@@ -67,10 +67,10 @@ class RISCVParser(Parser):
         count_line += 4
         return ('instruction_i', binary_instruction)
     
-    @_('INSTRUCION_TYPE_I_LOAD REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
+    @_('INSTRUCTION_TYPE_I_LOAD REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
     def line(self, p):
         global count_line
-        ins_info = ins_type_I[p.INSTRUCION_TYPE_I_LOAD]
+        ins_info = ins_type_I[p.INSTRUCTION_TYPE_I_LOAD]
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
         imm = num_binary(int(p.NUMBER), 12)
@@ -78,10 +78,10 @@ class RISCVParser(Parser):
         count_line += 4
         return ('instruction_i', binary_instruction)
     
-    @_('INSTRUCION_TYPE_S REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
+    @_('INSTRUCTION_TYPE_S REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
     def line(self, p):
         global count_line
-        ins_info = ins_type_S[p.INSTRUCION_TYPE_S]
+        ins_info = ins_type_S[p.INSTRUCTION_TYPE_S]
         rs1 = Registros(p.REGISTER1)
         rs2 = Registros(p.REGISTER0)
         imm = num_binary(int(p.NUMBER), 12)
@@ -91,20 +91,20 @@ class RISCVParser(Parser):
         count_line += 4
         return ('instruction_s', binary_instruction)
     
-    @_('INSTRUCION_TYPE_U REGISTER COMMA NUMBER')
+    @_('INSTRUCTION_TYPE_U REGISTER COMMA NUMBER')
     def line(self, p):
         global count_line
-        ins_info = ins_type_U[p.INSTRUCION_TYPE_U]
+        ins_info = ins_type_U[p.INSTRUCTION_TYPE_U]
         rd = Registros(p.REGISTER)
         imm = num_binary(int(p.NUMBER), 20)
         binary_instruction = f"{imm}{rd}{ins_info['opcode']}"
         count_line += 4
         return ('instruction_u', binary_instruction)
     
-    @_('INSTRUCION_TYPE_B REGISTER COMMA REGISTER COMMA LABEL')
+    @_('INSTRUCTION_TYPE_B REGISTER COMMA REGISTER COMMA LABEL')
     def line(self, p):
         global count_line
-        ins_info = ins_type_B[p.INSTRUCION_TYPE_B]
+        ins_info = ins_type_B[p.INSTRUCTION_TYPE_B]
         rs1 = Registros(p.REGISTER0)
         rs2 = Registros(p.REGISTER1)
         offset = self.label_dict[p.LABEL] - count_line
@@ -119,10 +119,10 @@ class RISCVParser(Parser):
         count_line += 4
         return ('instruction_b', binary_instruction)
     
-    @_('INSTRUCION_TYPE_J REGISTER COMMA LABEL')
+    @_('INSTRUCTION_TYPE_J REGISTER COMMA LABEL')
     def line(self, p):
         global count_line
-        ins_info = ins_type_J[p.INSTRUCION_TYPE_J]
+        ins_info = ins_type_J[p.INSTRUCTION_TYPE_J]
         rd = Registros(p.REGISTER)
         offset = self.label_dict[p.LABEL] - count_line
         imm = num_binary(offset, 21)

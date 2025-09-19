@@ -36,46 +36,46 @@ class ParserLabel(Parser):
         return ('label', p.LABEL)
 
     # Tipo R
-    @_('INSTRUCION_TYPE_R REGISTER COMMA REGISTER COMMA REGISTER')
+    @_('INSTRUCTION_TYPE_R REGISTER COMMA REGISTER COMMA REGISTER')
     def line(self, p):
         self.count_line += 4
-        return ('instruction_r', p.INSTRUCION_TYPE_R)
+        return ('instruction_r', p.INSTRUCTION_TYPE_R)
 
     # Tipo I
-    @_('INSTRUCION_TYPE_I REGISTER COMMA REGISTER COMMA NUMBER')
+    @_('INSTRUCTION_TYPE_I REGISTER COMMA REGISTER COMMA NUMBER')
     def line(self, p):
         self.count_line += 4
-        return ('instruction_i', p.INSTRUCION_TYPE_I)
+        return ('instruction_i', p.INSTRUCTION_TYPE_I)
 
     # Tipo I Load
-    @_('INSTRUCION_TYPE_I_LOAD REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
+    @_('INSTRUCTION_TYPE_I_LOAD REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
     def line(self, p):
         self.count_line += 4
-        return ('instruction_i', p.INSTRUCION_TYPE_I_LOAD)
+        return ('instruction_i', p.INSTRUCTION_TYPE_I_LOAD)
 
     # Tipo S
-    @_('INSTRUCION_TYPE_S REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
+    @_('INSTRUCTION_TYPE_S REGISTER COMMA NUMBER LPAREN REGISTER RPAREN')
     def line(self, p):
         self.count_line += 4
-        return ('instruction_s', p.INSTRUCION_TYPE_S)
+        return ('instruction_s', p.INSTRUCTION_TYPE_S)
 
     # Tipo U
-    @_('INSTRUCION_TYPE_U REGISTER COMMA NUMBER')
+    @_('INSTRUCTION_TYPE_U REGISTER COMMA NUMBER')
     def line(self, p):
         self.count_line += 4
-        return ('instruction_u', p.INSTRUCION_TYPE_U)
+        return ('instruction_u', p.INSTRUCTION_TYPE_U)
 
     # Tipo J
-    @_('INSTRUCION_TYPE_J REGISTER COMMA LABEL')
+    @_('INSTRUCTION_TYPE_J REGISTER COMMA LABEL')
     def line(self, p):
         self.count_line += 4
-        return ('instruction_j', p.INSTRUCION_TYPE_J)
+        return ('instruction_j', p.INSTRUCTION_TYPE_J)
 
     # Tipo B
-    @_('INSTRUCION_TYPE_B REGISTER COMMA REGISTER COMMA LABEL')
+    @_('INSTRUCTION_TYPE_B REGISTER COMMA REGISTER COMMA LABEL')
     def line(self, p):
         self.count_line += 4
-        return ('instruction_b', p.INSTRUCION_TYPE_B)
+        return ('instruction_b', p.INSTRUCTION_TYPE_B)
     
 
     #TIPO I (EBREAK,ECALL)
