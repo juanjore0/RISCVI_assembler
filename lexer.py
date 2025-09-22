@@ -5,7 +5,8 @@ class RISCVLexer(Lexer):
     tokens = {
         INSTRUCTION_TYPE_R, INSTRUCTION_TYPE_I, INSTRUCTION_TYPE_I_LOAD, INSTRUCTION_TYPE_B, 
         INSTRUCTION_TYPE_S, INSTRUCTION_TYPE_U, INSTRUCTION_TYPE_J, INSTRUCTION_TYPE_I_CB,
-        COMMA, REGISTER, NUMBER, NEWLINE, LPAREN, RPAREN, LABEL, COLON, DIRECTIVE
+        PSEUDO_INSTRUCTION, COMMA, REGISTER, NUMBER, NEWLINE, LPAREN, RPAREN, LABEL, COLON, 
+        DIRECTIVE
     }
 
     # Definir tokens utilizando expresiones regulares
@@ -17,6 +18,7 @@ class RISCVLexer(Lexer):
     INSTRUCTION_TYPE_B = r'\b(beq|bne|blt|bge|bltu|bgeu)\b'
     INSTRUCTION_TYPE_U = r'\b(lui|auipc)\b'
     INSTRUCTION_TYPE_J = r'\b(jal)\b'
+    PSEUDO_INSTRUCTION = r'\b(la|sb|sh|sw|nop|li|mv|not|neg|seqz|snez|sltz|sgtz|beqz|bnez|blez|bgez|bltz|bgtz|bgt|ble|bgtu|bleu|j|)\b'
     COMMA = r','
     LPAREN = r'\('
     RPAREN = r'\)'
