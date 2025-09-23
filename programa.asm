@@ -1,7 +1,6 @@
 .text
 main:
     nop             # debería convertirse en addi x0, x0, 0
-    li x5, 10       # debería convertirse en addi x5, x0, 10
     mv x6, x5       # debería convertirse en addi x6, x5, 0
     not x7, x6      # debería convertirse en xori x7, x6, -1
     neg x8, x7      # debería convertirse en sub x8, x0, x7
