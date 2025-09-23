@@ -18,7 +18,7 @@ class RISCVLexer(Lexer):
     INSTRUCTION_TYPE_B = r'\b(beq|bne|blt|bge|bltu|bgeu)\b'
     INSTRUCTION_TYPE_U = r'\b(lui|auipc)\b'
     INSTRUCTION_TYPE_J = r'\b(jal)\b'
-    PSEUDO_INSTRUCTION = r'\b(la|sb|sh|sw|nop|li|mv|not|neg|seqz|snez|sltz|sgtz|beqz|bnez|blez|bgez|bltz|bgtz|bgt|ble|bgtu|bleu|j|)\b'
+    PSEUDO_INSTRUCTION = r'\b(la|sb|sh|sw|nop|li|mv|not|neg|seqz|snez|sltz|sgtz|beqz|bnez|blez|bgez|bltz|bgtz|bgt|ble|bgtu|bleu|j)\b'
     COMMA = r','
     LPAREN = r'\('
     RPAREN = r'\)'
@@ -79,6 +79,10 @@ class RISCVLexer(Lexer):
 
 if __name__ == "__main__":
     data = """
+    .data
+    x: .word 10
+    y: .byte 0xFF
+
     .text
     main:
         addi x1, x2, 10
