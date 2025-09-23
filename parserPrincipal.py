@@ -434,7 +434,7 @@ class RISCVParser(Parser):
         count_line += 4
         return ('instruction_b', binary_instruction)
 
-     @_('BNEZ REGISTER COMMA LABEL')
+    @_('BNEZ REGISTER COMMA LABEL')
     def line(self, p):
         # bnez rs, offset -> bne rs, x0, offset
         global count_line
