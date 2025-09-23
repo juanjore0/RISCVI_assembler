@@ -9,8 +9,11 @@ class RISCVLexer(Lexer):
         NOP, MV, NOT, NEG, SEQZ, SNEZ, SLTZ, SGTZ,
         BEQZ, BNEZ, BLEZ, BGEZ, BLTZ, BGTZ, 
         BGT, BLE, BGTU, BLEU,
-        J_PSEUDO, JR, RET,
+        J_PSEUDO, JR, RET, LI, LA, CALL, TAIL,
         JAL_PSEUDO, JALR_PSEUDO,
+        # Load/Store globales (pseudoinstrucciones)
+        LB_GLOBAL, LH_GLOBAL, LW_GLOBAL,
+        SB_GLOBAL, SH_GLOBAL, SW_GLOBAL,
         # Tokens existentes
         COMMA, REGISTER, NUMBER, NEWLINE, LPAREN, RPAREN, LABEL, COLON, 
         DIRECTIVE, DATA_DIRECTIVE
@@ -25,6 +28,15 @@ class RISCVLexer(Lexer):
     JAL_PSEUDO = r'\bjal\b(?!\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,)'  # jal offset (no jal rd, offset)
     JALR_PSEUDO = r'\bjalr\b(?!\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*,)'  # jalr rs (no jalr rd, rs, imm)
     
+    # Load/Store globales (distinguir de las instrucciones base por contexto)
+    # Estas reconocen el patrón: instrucción registro, etiqueta (sin paréntesis)
+    LB_GLOBAL = r'\blb\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    LH_GLOBAL = r'\blh\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    LW_GLOBAL = r'\blw\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    SB_GLOBAL = r'\bsb\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    SH_GLOBAL = r'\bsh\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    SW_GLOBAL = r'\bsw\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+
     # Pseudoinstrucciones simples
     NOP = r'\bnop\b'
     MV = r'\bmv\b'
@@ -46,6 +58,10 @@ class RISCVLexer(Lexer):
     BLEU = r'\bbleu\b'
     JR = r'\bjr\b'
     RET = r'\bret\b'
+    LI = r'\bli\b'
+    LA = r'\bla\b'
+    CALL = r'\bcall\b'
+    TAIL = r'\btail\b'
 
     # Instrucciones base (deben ir DESPUÉS de las pseudoinstrucciones)
     INSTRUCTION_TYPE_R = r'\b(add|sub|xor|or|and|sll|srl|sra|slt|sltu)\b'
@@ -64,6 +80,7 @@ class RISCVLexer(Lexer):
     COLON = r':'
     DIRECTIVE = r'\.text|\.data'
     DATA_DIRECTIVE = r'\.(word|byte|half)'
+
 
     # Expresión regular para registros (x0-x31 y sus alias)
     REGISTER = r'\b(zero|ra|sp|gp|tp|t0|t1|t2|s0|s1|a0|a1|a2|a3|a4|a5|a6|a7|s2|s3|s4|s5|s6|s7|s8|s9|s10|s11|t3|t4|t5|t6|x[0-9]{1,2})\b'
