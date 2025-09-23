@@ -16,7 +16,7 @@ class RISCVLexer(Lexer):
         SB_GLOBAL, SH_GLOBAL, SW_GLOBAL,
         # Tokens existentes
         COMMA, REGISTER, NUMBER, NEWLINE, LPAREN, RPAREN, LABEL, COLON, 
-        DIRECTIVE
+        DIRECTIVE, DATA_DIRECTIVE
     }
 
     # IMPORTANTE: Las pseudoinstrucciones deben ir ANTES que las instrucciones base
@@ -72,14 +72,15 @@ class RISCVLexer(Lexer):
     INSTRUCTION_TYPE_B = r'\b(beq|bne|blt|bge|bltu|bgeu)\b'
     INSTRUCTION_TYPE_U = r'\b(lui|auipc)\b'
     INSTRUCTION_TYPE_J = r'\b(jal)\b'
-    PSEUDO_INSTRUCTION = r'\b(la|sb|sh|sw|nop|li|mv|not|neg|seqz|snez|sltz|sgtz|beqz|bnez|blez|bgez|bltz|bgtz|bgt|ble|bgtu|bleu|j)\b'
-    
+   
     # Otros tokens
     COMMA = r','
     LPAREN = r'\('
     RPAREN = r'\)'
     COLON = r':'
     DIRECTIVE = r'\.text|\.data'
+    DATA_DIRECTIVE = r'\.(word|byte|half|string)'
+
 
     # Expresión regular para registros (x0-x31 y sus alias)
     REGISTER = r'\b(zero|ra|sp|gp|tp|t0|t1|t2|s0|s1|a0|a1|a2|a3|a4|a5|a6|a7|s2|s3|s4|s5|s6|s7|s8|s9|s10|s11|t3|t4|t5|t6|x[0-9]{1,2})\b'
