@@ -35,8 +35,6 @@ class MemoryManager:
 
         self.current_addr += size
 
-        print(f"[.data] {label}: {dtype} {value} almacenado en {hex(addr)} with value {value}")
-
     def dump_data(self):
         for label, info in self.memory.items():
             print(f"{label} ({info['type']}): addr={hex(info['addr'])}, value={info['value']}")

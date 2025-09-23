@@ -13,9 +13,18 @@ def main(asm_file, hex_file, bin_file):
     print("pass 1 complete. Symbol Table:")
     print(symbol_table)
 
+    with open(asm_file, 'r') as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) >= 3 and parts[1].startswith("."):
+                label = parts[0].replace(":", "")
+                dtype = parts[1]
+                value = int(parts[2], 0)  # acepta 127, 0x7F, 0b1010, etc.
+                memory.add_data(label, dtype, value)
+
     #segunda pasada: instrucciones
     lexer = RISCVLexer()
-    parser = RISCVParser(symbol_table)
+    parser = RISCVParser(symbol_table, memory)
 
     with open(asm_file, 'r') as f:
         source_code = f.read()

@@ -21,9 +21,10 @@ def num_binary(numero, bits):
 class RISCVParser(Parser):
     tokens = RISCVLexer.tokens
 
-    def __init__(self, label_dict):
+    def __init__(self, label_dict, memory):
         super().__init__()
         self.label_dict = label_dict
+        self.memory = memory
 
     # Reglas para un programa completo
     @_('line program')
@@ -293,132 +294,154 @@ class RISCVParser(Parser):
 
     @_('LA REGISTER COMMA LABEL')
     def line(self, p):
-        # la rd, symbol -> addi rd, x0, symbol_address (versión simple)
         global count_line
-        symbol_address = self.label_dict.get(p.LABEL, 0)
-        
-        # Verificar si cabe en 12 bits con signo
-        if -2048 <= symbol_address <= 2047:
-            ins_info = ins_type_I['addi']
-            rd = Registros(p.REGISTER)
-            rs1 = "00000"  # x0
-            imm = num_binary(symbol_address, 12)
-            binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
-            count_line += 4
-            return ('instruction_i', binary_instruction)
+        if p.LABEL in self.memory.memory:
+            symbol_address = self.memory.memory[p.LABEL]["addr"]
         else:
-            # Para direcciones más grandes, necesitarías lui + addi
-            raise ValueError(f"Symbol address {symbol_address} too large for simple la implementation")
+            raise ValueError(f"Etiqueta {p.LABEL} no encontrada en memoria")
+
+        # Tomar los 12 bits bajos de la dirección (aunque no sea real RISC-V)
+        ins_info = ins_type_I['addi']
+        rd = Registros(p.REGISTER)
+        rs1 = "00000"
+        imm = num_binary(symbol_address & 0xFFF, 12)
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
 
     # LOAD/STORE GLOBALES (implementación simplificada)
     @_('LB_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
-        # lb rd, symbol -> addi rd, x0, 0; lb rd, symbol_address(rd) (simplificado)
         global count_line
-        symbol_address = self.label_dict.get(p.LABEL, 0)
-        
+        # Buscar la dirección en memoria
+        if p.LABEL in self.memory.memory:
+            symbol_address = self.memory.memory[p.LABEL]["addr"]
+        else:
+            raise ValueError(f"Etiqueta {p.LABEL} no encontrada en memoria")
+
+        # Validar rango de inmediato
         if -2048 <= symbol_address <= 2047:
-            # Usar lb con x0 como base si la dirección es pequeña
             ins_info = ins_type_I['lb']
             rd = Registros(p.REGISTER)
-            rs1 = "00000"  # x0
+            rs1 = "00000"  # x0 como base
             imm = num_binary(symbol_address, 12)
             binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
             count_line += 4
             return ('instruction_i', binary_instruction)
         else:
-            raise ValueError(f"Global load address {symbol_address} too large for simple implementation")
+            raise ValueError(f"Dirección {symbol_address} demasiado grande para lb_global")
 
     @_('LH_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
-        # Similar a LB_GLOBAL pero para half-word
         global count_line
-        symbol_address = self.label_dict.get(p.LABEL, 0)
-        
+        # Buscar la dirección en memoria
+        if p.LABEL in self.memory.memory:
+            symbol_address = self.memory.memory[p.LABEL]["addr"]
+        else:
+            raise ValueError(f"Etiqueta {p.LABEL} no encontrada en memoria")
+
+        # Validar rango de inmediato
         if -2048 <= symbol_address <= 2047:
             ins_info = ins_type_I['lh']
             rd = Registros(p.REGISTER)
-            rs1 = "00000"  # x0
+            rs1 = "00000"  # x0 como base
             imm = num_binary(symbol_address, 12)
             binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
             count_line += 4
             return ('instruction_i', binary_instruction)
         else:
-            raise ValueError(f"Global load address {symbol_address} too large for simple implementation")
+            raise ValueError(f"Dirección {symbol_address} demasiado grande para lh_global")
 
     @_('LW_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
-        # Similar a LB_GLOBAL pero para word
         global count_line
-        symbol_address = self.label_dict.get(p.LABEL, 0)
-        
+        if p.LABEL in self.memory.memory:
+            symbol_address = self.memory.memory[p.LABEL]["addr"]
+        else:
+            raise ValueError(f"Etiqueta {p.LABEL} no encontrada en memoria")
+
         if -2048 <= symbol_address <= 2047:
             ins_info = ins_type_I['lw']
             rd = Registros(p.REGISTER)
-            rs1 = "00000"  # x0
+            rs1 = "00000"
             imm = num_binary(symbol_address, 12)
             binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
             count_line += 4
             return ('instruction_i', binary_instruction)
         else:
-            raise ValueError(f"Global load address {symbol_address} too large for simple implementation")
+            raise ValueError(f"Dirección {symbol_address} demasiado grande para lw_global")
+
 
     @_('SB_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
-        # sb rs, symbol (simplificado)
         global count_line
-        symbol_address = self.label_dict.get(p.LABEL, 0)
-        
+        # Buscar la dirección en memoria
+        if p.LABEL in self.memory.memory:
+            symbol_address = self.memory.memory[p.LABEL]["addr"]
+        else:
+            raise ValueError(f"Etiqueta {p.LABEL} no encontrada en memoria")
+
+        # Validar rango de inmediato
         if -2048 <= symbol_address <= 2047:
             ins_info = ins_type_S['sb']
             rs1 = "00000"  # x0 como base
-            rs2 = Registros(p.REGISTER)
+            rs2 = Registros(p.REGISTER)  # valor a guardar
             imm = num_binary(symbol_address, 12)
-            imm_high = imm[:7]  # Bits 11 a 5
-            imm_low = imm[7:]   # Bits 4 a 0
+            imm_high = imm[:7]   # bits 11-5
+            imm_low = imm[7:]    # bits 4-0
             binary_instruction = f"{imm_high}{rs2}{rs1}{ins_info['funct3']}{imm_low}{ins_info['opcode']}"
             count_line += 4
             return ('instruction_s', binary_instruction)
         else:
-            raise ValueError(f"Global store address {symbol_address} too large for simple implementation")
+            raise ValueError(f"Dirección {symbol_address} demasiado grande para sb_global")
 
     @_('SH_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
-        # Similar a SB_GLOBAL pero para half-word
         global count_line
-        symbol_address = self.label_dict.get(p.LABEL, 0)
-        
+        # Buscar la dirección en memoria
+        if p.LABEL in self.memory.memory:
+            symbol_address = self.memory.memory[p.LABEL]["addr"]
+        else:
+            raise ValueError(f"Etiqueta {p.LABEL} no encontrada en memoria")
+
+        # Validar rango de inmediato
         if -2048 <= symbol_address <= 2047:
             ins_info = ins_type_S['sh']
             rs1 = "00000"  # x0 como base
-            rs2 = Registros(p.REGISTER)
+            rs2 = Registros(p.REGISTER)  # valor a guardar
             imm = num_binary(symbol_address, 12)
-            imm_high = imm[:7]  # Bits 11 a 5
-            imm_low = imm[7:]   # Bits 4 a 0
+            imm_high = imm[:7]   # bits 11-5
+            imm_low = imm[7:]    # bits 4-0
             binary_instruction = f"{imm_high}{rs2}{rs1}{ins_info['funct3']}{imm_low}{ins_info['opcode']}"
             count_line += 4
             return ('instruction_s', binary_instruction)
         else:
-            raise ValueError(f"Global store address {symbol_address} too large for simple implementation")
+            raise ValueError(f"Dirección {symbol_address} demasiado grande para sh_global")
+
 
     @_('SW_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
-        # Similar a SB_GLOBAL pero para word
         global count_line
-        symbol_address = self.label_dict.get(p.LABEL, 0)
-        
+        # Buscar la dirección en memoria
+        if p.LABEL in self.memory.memory:
+            symbol_address = self.memory.memory[p.LABEL]["addr"]
+        else:
+            raise ValueError(f"Etiqueta {p.LABEL} no encontrada en memoria")
+
+        # Validar rango de inmediato
         if -2048 <= symbol_address <= 2047:
             ins_info = ins_type_S['sw']
             rs1 = "00000"  # x0 como base
-            rs2 = Registros(p.REGISTER)
+            rs2 = Registros(p.REGISTER)  # valor a guardar
             imm = num_binary(symbol_address, 12)
-            imm_high = imm[:7]  # Bits 11 a 5
-            imm_low = imm[7:]   # Bits 4 a 0
+            imm_high = imm[:7]   # bits 11-5
+            imm_low = imm[7:]    # bits 4-0
             binary_instruction = f"{imm_high}{rs2}{rs1}{ins_info['funct3']}{imm_low}{ins_info['opcode']}"
             count_line += 4
             return ('instruction_s', binary_instruction)
         else:
-            raise ValueError(f"Global store address {symbol_address} too large for simple implementation")
+            raise ValueError(f"Dirección {symbol_address} demasiado grande para sw_global")
+
 
     # SALTOS CONDICIONALES CON UN OPERANDO
     @_('BEQZ REGISTER COMMA LABEL')
