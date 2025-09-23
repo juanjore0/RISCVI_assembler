@@ -40,6 +40,14 @@ class RISCVParser(Parser):
     @_('DIRECTIVE')
     def line(self, p):
         return ('directive', p.DIRECTIVE)
+    
+    @_('LABEL COLON DATA_DIRECTIVE NUMBER')
+    def line(self, p):
+        return ('data_def', {
+            'label': p.LABEL,
+            'type': p.DATA_DIRECTIVE,
+            'value': int(p.NUMBER)
+        })
 
     @_('LABEL COLON')
     def line(self, p):
