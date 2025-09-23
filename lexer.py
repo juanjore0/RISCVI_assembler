@@ -5,11 +5,65 @@ class RISCVLexer(Lexer):
     tokens = {
         INSTRUCTION_TYPE_R, INSTRUCTION_TYPE_I, INSTRUCTION_TYPE_I_LOAD, INSTRUCTION_TYPE_B, 
         INSTRUCTION_TYPE_S, INSTRUCTION_TYPE_U, INSTRUCTION_TYPE_J, INSTRUCTION_TYPE_I_CB,
-        PSEUDO_INSTRUCTION, COMMA, REGISTER, NUMBER, NEWLINE, LPAREN, RPAREN, LABEL, COLON, 
+        # Pseudoinstrucciones específicas
+        NOP, MV, NOT, NEG, SEQZ, SNEZ, SLTZ, SGTZ,
+        BEQZ, BNEZ, BLEZ, BGEZ, BLTZ, BGTZ, 
+        BGT, BLE, BGTU, BLEU,
+        J_PSEUDO, JR, RET, LI, LA, CALL, TAIL,
+        JAL_PSEUDO, JALR_PSEUDO,
+        # Load/Store globales (pseudoinstrucciones)
+        LB_GLOBAL, LH_GLOBAL, LW_GLOBAL,
+        SB_GLOBAL, SH_GLOBAL, SW_GLOBAL,
+        # Tokens existentes
+        COMMA, REGISTER, NUMBER, NEWLINE, LPAREN, RPAREN, LABEL, COLON, 
         DIRECTIVE
     }
 
-    # Definir tokens utilizando expresiones regulares
+    # IMPORTANTE: Las pseudoinstrucciones deben ir ANTES que las instrucciones base
+    # para evitar conflictos de reconocimiento
+    
+    # Pseudoinstrucciones que pueden conflictuar con instrucciones base
+    # Usamos lookahead negativo para distinguir contextos
+    J_PSEUDO = r'\bj\b(?!\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,)'  # j offset (no j rd, offset)
+    JAL_PSEUDO = r'\bjal\b(?!\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,)'  # jal offset (no jal rd, offset)
+    JALR_PSEUDO = r'\bjalr\b(?!\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*,)'  # jalr rs (no jalr rd, rs, imm)
+    
+    # Load/Store globales (distinguir de las instrucciones base por contexto)
+    # Estas reconocen el patrón: instrucción registro, etiqueta (sin paréntesis)
+    LB_GLOBAL = r'\blb\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    LH_GLOBAL = r'\blh\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    LW_GLOBAL = r'\blw\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    SB_GLOBAL = r'\bsb\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    SH_GLOBAL = r'\bsh\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+    SW_GLOBAL = r'\bsw\b(?=\s+[a-zA-Z_][a-zA-Z0-9_]*\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*\s*(?!\())'
+
+    # Pseudoinstrucciones simples
+    NOP = r'\bnop\b'
+    MV = r'\bmv\b'
+    NOT = r'\bnot\b'
+    NEG = r'\bneg\b'
+    SEQZ = r'\bseqz\b'
+    SNEZ = r'\bsnez\b'
+    SLTZ = r'\bsltz\b'
+    SGTZ = r'\bsgtz\b'
+    BEQZ = r'\bbeqz\b'
+    BNEZ = r'\bbnez\b'
+    BLEZ = r'\bblez\b'
+    BGEZ = r'\bbgez\b'
+    BLTZ = r'\bbltz\b'
+    BGTZ = r'\bbgtz\b'
+    BGT = r'\bbgt\b'
+    BLE = r'\bble\b'
+    BGTU = r'\bbgtu\b'
+    BLEU = r'\bbleu\b'
+    JR = r'\bjr\b'
+    RET = r'\bret\b'
+    LI = r'\bli\b'
+    LA = r'\bla\b'
+    CALL = r'\bcall\b'
+    TAIL = r'\btail\b'
+
+    # Instrucciones base (deben ir DESPUÉS de las pseudoinstrucciones)
     INSTRUCTION_TYPE_R = r'\b(add|sub|xor|or|and|sll|srl|sra|slt|sltu)\b'
     INSTRUCTION_TYPE_I = r'\b(addi|xori|ori|andi|slli|srli|srai|slti|sltiu|jalr)\b'
     INSTRUCTION_TYPE_I_LOAD = r'\b(lb|lh|lw|lhu|lbu)\b'
@@ -19,6 +73,8 @@ class RISCVLexer(Lexer):
     INSTRUCTION_TYPE_U = r'\b(lui|auipc)\b'
     INSTRUCTION_TYPE_J = r'\b(jal)\b'
     PSEUDO_INSTRUCTION = r'\b(la|sb|sh|sw|nop|li|mv|not|neg|seqz|snez|sltz|sgtz|beqz|bnez|blez|bgez|bltz|bgtz|bgt|ble|bgtu|bleu|j)\b'
+    
+    # Otros tokens
     COMMA = r','
     LPAREN = r'\('
     RPAREN = r'\)'
@@ -85,9 +141,19 @@ if __name__ == "__main__":
 
     .text
     main:
+        nop
+        mv x1, x2
+        not x3, x4
+        beqz x5, loop
+        j end
+        lw x6, var
+        sw x7, result
+    loop:
         addi x1, x2, 10
         lw x3, 0(x1)
         sw x3, 4(x2) # store word
+    end:
+        ret
     """
 
     lexer = RISCVLexer()
