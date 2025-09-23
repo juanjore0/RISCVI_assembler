@@ -167,6 +167,48 @@ class ParserLabel(Parser):
     def line(self, p):
         self.count_line += 4
         return ('pseudo_instruction', p.SGTZ)
+    
+    # PSEUDOINSTRUCCIONES CON REGISTRO E INMEDIATO/ETIQUETA
+    @_('LI REGISTER COMMA NUMBER')
+    def line(self, p):
+        self.count_line += 4  # Puede ser más si el inmediato es grande
+        return ('pseudo_instruction', p.LI)
+
+    @_('LA REGISTER COMMA LABEL')
+    def line(self, p):
+        self.count_line += 4  # Puede ser más si la dirección es grande
+        return ('pseudo_instruction', p.LA)
+
+    # LOAD/STORE GLOBALES
+    @_('LB_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        self.count_line += 4  # Simplificado: asumimos 1 instrucción por ahora
+        return ('pseudo_instruction', 'lb_global')
+
+    @_('LH_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        self.count_line += 4
+        return ('pseudo_instruction', 'lh_global')
+
+    @_('LW_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        self.count_line += 4
+        return ('pseudo_instruction', 'lw_global')
+
+    @_('SB_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        self.count_line += 4
+        return ('pseudo_instruction', 'sb_global')
+
+    @_('SH_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        self.count_line += 4
+        return ('pseudo_instruction', 'sh_global')
+
+    @_('SW_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        self.count_line += 4
+        return ('pseudo_instruction', 'sw_global')
 
     # SALTOS CONDICIONALES CON UN OPERANDO
     @_('BEQZ REGISTER COMMA LABEL')
@@ -240,6 +282,16 @@ class ParserLabel(Parser):
     def line(self, p):
         self.count_line += 4
         return ('pseudo_instruction', 'jalr_pseudo')
+    
+    @_('CALL LABEL')
+    def line(self, p):
+        self.count_line += 4  # Puede ser más si el offset es grande
+        return ('pseudo_instruction', p.CALL)
+
+    @_('TAIL LABEL')
+    def line(self, p):
+        self.count_line += 4  # Puede ser más si el offset es grande
+        return ('pseudo_instruction', p.TAIL)
 
     # Líneas vacías
     @_('NEWLINE')
