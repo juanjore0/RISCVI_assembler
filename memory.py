@@ -1,24 +1,41 @@
+import struct
 
 class MemoryManager:
-    def __init__(self, base_address=0x10010000):
-        self.base_address = base_address  # dirección base del segmento de datos
-        self.current_address = base_address
-        self.memory = {}  # dict {direccion: valor}
-        self.symbol_table = {}  # diccionario de etiquetas -> dirección
+    def __init__(self, base_addr=0x10010000):
+       
+        self.base_addr = base_addr
+        self.memory = {}
+        self.current_addr = base_addr
 
-    def allocate(self, label, dtype, value):
-        # Define el tamaño según la directiva
-        sizes = {'.byte': 1, '.half': 2, '.word': 4}
-        size = sizes[dtype]
+    # ======================
+    # --- MANEJO DE DATA ---
+    # ======================
+    def add_data(self, label, dtype, value):
+        """
+        Agrega variables a la sección .data
+        dtype puede ser: '.word', '.half', '.byte'
+        """
+        # Guardar en memoria
+        if dtype == ".word":
+            size = 4
+        elif dtype == ".half":
+            size = 2
+        elif dtype == ".byte":
+            size = 1
+        else:
+            raise ValueError(f"Tipo de dato no soportado: {dtype}")
 
-        # Guardar la dirección de la variable
-        self.symbol_table[label] = self.current_address
+         # Guardar en memoria
+        self.memory[label] = {
+            "addr": self.current_addr,
+            "type": dtype,
+            "value": value
+        }
 
-        # Guardar el valor en memoria (simulado por bytes)
-        for i in range(size):
-            self.memory[self.current_address + i] = (value >> (8 * i)) & 0xFF
+        self.current_addr += size
+    
+        print(f"[.data] {label}: {dtype} {value} almacenado en{hex(addr)} with value {value}")
 
-        # Avanzar el puntero de datos
-        self.current_address += size
-
-        return self.symbol_table[label]
+    def dump_data(self):
+        for label, info in self.memory.items():
+            print(f"{label} ({info['type']}): addr={hex(info['addr'])}, value={info['value']}")

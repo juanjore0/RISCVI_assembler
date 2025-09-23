@@ -1,5 +1,6 @@
 from sly import Parser
 from lexer import RISCVLexer
+from memory import MemoryManager
 
 class ParserLabel(Parser):
     tokens = RISCVLexer.tokens
@@ -9,7 +10,7 @@ class ParserLabel(Parser):
         self.label_dict = {}  # diccionario de etiquetas
         self.data_section = [] #variables en .data
         self.text_section = [] #instrucciones en .text
-
+        self.memory = MemoryManager()
     # ----------- Reglas principales -----------
 
     @_('program')
@@ -41,6 +42,7 @@ class ParserLabel(Parser):
 
     @_('LABEL COLON DATA_DIRECTIVE NUMBER')
     def line(self, p):
+        self.memory.add_data(p.LABEL, p.DATA_DIRECTIVE, p.NUMBER)
         # Ejemplo: x: .word 10
         return ('data_def', {
             'label': p.LABEL,
@@ -51,6 +53,8 @@ class ParserLabel(Parser):
     # Definición de datos con lista de números (ej. x: .word 1, 2, 3)
     @_('LABEL COLON DATA_DIRECTIVE number_list')
     def line(self, p):
+        for num in p.number_list:
+            self.memory.add_data(p.LABEL, p.DATA_DIRECTIVE, num)
         return ('data_def', {
             'label': p.LABEL,
             'type': p.DATA_DIRECTIVE,
