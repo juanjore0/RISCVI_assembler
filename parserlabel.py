@@ -7,20 +7,22 @@ class ParserLabel(Parser):
     def __init__(self):
         self.count_line = 0  # contador de PC
         self.label_dict = {}  # diccionario de etiquetas
+        self.data_section = [] #variables en .data
+        self.text_section = [] #instrucciones en .text
 
     # ----------- Reglas principales -----------
 
     @_('program')
     def statement(self, p):
         return p.program
-
+    
     @_('line program')
     def program(self, p):
-        return [p.line] + p.program
+        return (p.line if isinstance(p.line, list) else [p.line]) + p.program
 
     @_('line')
     def program(self, p):
-        return [p.line]
+        return p.line if isinstance(p.line, list) else [p.line]
 
     # ----------- Reglas de línea -----------
 
@@ -34,6 +36,38 @@ class ParserLabel(Parser):
     def line(self, p):
         self.label_dict[p.LABEL] = self.count_line
         return ('label', p.LABEL)
+
+     # ----------- DATA DEFINITIONS -----------
+
+    @_('LABEL COLON DATA_DIRECTIVE NUMBER')
+    def line(self, p):
+        # Ejemplo: x: .word 10
+        return ('data_def', {
+            'label': p.LABEL,
+            'type': p.DATA_DIRECTIVE,
+            'value': p.NUMBER
+        })
+    
+    # Definición de datos con lista de números (ej. x: .word 1, 2, 3)
+    @_('LABEL COLON DATA_DIRECTIVE number_list')
+    def line(self, p):
+        return ('data_def', {
+            'label': p.LABEL,
+            'type': p.DATA_DIRECTIVE,
+            'value': p.number_list
+        })
+    
+    # ----------- LISTAS DE NÚMEROS -----------
+
+    @_('NUMBER')
+    def number_list(self, p):
+        return [p.NUMBER]
+
+    @_('NUMBER COMMA number_list')
+    def number_list(self, p):
+        return [p.NUMBER] + p.number_list
+    
+
 
     # ----------- INSTRUCCIONES BASE -----------
 
@@ -262,7 +296,7 @@ class ParserLabel(Parser):
     # Líneas vacías
     @_('NEWLINE')
     def line(self, p):
-        return None
+        return []
 
     # ----------- Método para obtener etiquetas -----------
     def get_labels(self, input_file_path):
