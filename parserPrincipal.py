@@ -34,7 +34,7 @@ class RISCVParser(Parser):
     def program(self, p):
         return [p.line]
 
-    # Reglas para una sola línea (instrucción, etiqueta o comentario)
+    # ----------- INSTRUCCIONES BASE -----------
     
     # Directivas
     @_('DIRECTIVE')
@@ -149,6 +149,560 @@ class RISCVParser(Parser):
         binary_instruction = f"{imm20}{imm10_1}{imm11}{imm19_12}{rd}{ins_info['opcode']}"
         count_line += 4
         return ('instruction_j', binary_instruction)
+    
+    # ----------- PSEUDO INSTRUCCIONES -----------
+
+    # PSEUDOINSTRUCCIONES SIN OPERANDOS
+    @_('NOP')
+    def line(self, p):
+        # nop -> addi x0, x0, 0
+        global count_line
+        ins_info = ins_type_I['addi']
+        rd = "00000"  # x0
+        rs1 = "00000"  # x0
+        imm = "000000000000"  # 0
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
+
+    @_('RET')
+    def line(self, p):
+        # ret -> jalr x0, x1, 0
+        global count_line
+        ins_info = ins_type_I['jalr']
+        rd = "00000"  # x0
+        rs1 = "00001"  # x1
+        imm = "000000000000"  # 0
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
+
+    # PSEUDOINSTRUCCIONES CON DOS OPERANDOS (rd, rs)
+    @_('MV REGISTER COMMA REGISTER')
+    def line(self, p):
+        # mv rd, rs -> addi rd, rs, 0
+        global count_line
+        ins_info = ins_type_I['addi']
+        rd = Registros(p.REGISTER0)
+        rs1 = Registros(p.REGISTER1)
+        imm = "000000000000"  # 0
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
+
+    @_('NOT REGISTER COMMA REGISTER')
+    def line(self, p):
+        # not rd, rs -> xori rd, rs, -1
+        global count_line
+        ins_info = ins_type_I['xori']
+        rd = Registros(p.REGISTER0)
+        rs1 = Registros(p.REGISTER1)
+        imm = num_binary(-1, 12)
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
+
+    @_('NEG REGISTER COMMA REGISTER')
+    def line(self, p):
+        # neg rd, rs -> sub rd, x0, rs
+        global count_line
+        ins_info = ins_type_R['sub']
+        rd = Registros(p.REGISTER0)
+        rs1 = "00000"  # x0
+        rs2 = Registros(p.REGISTER1)
+        binary_instruction = f"{ins_info['funct7']}{rs2}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_r', binary_instruction)
+
+    @_('SEQZ REGISTER COMMA REGISTER')
+    def line(self, p):
+        # seqz rd, rs -> sltiu rd, rs, 1
+        global count_line
+        ins_info = ins_type_I['sltiu']
+        rd = Registros(p.REGISTER0)
+        rs1 = Registros(p.REGISTER1)
+        imm = "000000000001"  # 1
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
+
+    @_('SNEZ REGISTER COMMA REGISTER')
+    def line(self, p):
+        # snez rd, rs -> sltu rd, x0, rs
+        global count_line
+        ins_info = ins_type_R['sltu']
+        rd = Registros(p.REGISTER0)
+        rs1 = "00000"  # x0
+        rs2 = Registros(p.REGISTER1)
+        binary_instruction = f"{ins_info['funct7']}{rs2}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_r', binary_instruction)
+
+    @_('SLTZ REGISTER COMMA REGISTER')
+    def line(self, p):
+        # sltz rd, rs -> slt rd, rs, x0
+        global count_line
+        ins_info = ins_type_R['slt']
+        rd = Registros(p.REGISTER0)
+        rs1 = Registros(p.REGISTER1)
+        rs2 = "00000"  # x0
+        binary_instruction = f"{ins_info['funct7']}{rs2}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_r', binary_instruction)
+
+    @_('SGTZ REGISTER COMMA REGISTER')
+    def line(self, p):
+        # sgtz rd, rs -> slt rd, x0, rs
+        global count_line
+        ins_info = ins_type_R['slt']
+        rd = Registros(p.REGISTER0)
+        rs1 = "00000"  # x0
+        rs2 = Registros(p.REGISTER1)
+        binary_instruction = f"{ins_info['funct7']}{rs2}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_r', binary_instruction)
+
+    # PSEUDOINSTRUCCIONES CON REGISTRO E INMEDIATO/ETIQUETA
+    @_('LI REGISTER COMMA NUMBER')
+    def line(self, p):
+        # li rd, immediate -> addi rd, x0, immediate
+        global count_line
+        immediate_value = int(p.NUMBER)
+        
+        # Verificar si cabe en 12 bits con signo
+        if -2048 <= immediate_value <= 2047:
+            # Usar solo addi
+            ins_info = ins_type_I['addi']
+            rd = Registros(p.REGISTER)
+            rs1 = "00000"  # x0
+            imm = num_binary(immediate_value, 12)
+            binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_i', binary_instruction)
+        else:
+            # Para valores más grandes, necesitarías implementar lui + addi
+            # Por simplicidad, por ahora manejo solo valores de 12 bits
+            raise ValueError(f"Immediate value {immediate_value} too large for simple li implementation")
+
+    @_('LA REGISTER COMMA LABEL')
+    def line(self, p):
+        # la rd, symbol -> addi rd, x0, symbol_address (versión simple)
+        global count_line
+        symbol_address = self.label_dict.get(p.LABEL, 0)
+        
+        # Verificar si cabe en 12 bits con signo
+        if -2048 <= symbol_address <= 2047:
+            ins_info = ins_type_I['addi']
+            rd = Registros(p.REGISTER)
+            rs1 = "00000"  # x0
+            imm = num_binary(symbol_address, 12)
+            binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_i', binary_instruction)
+        else:
+            # Para direcciones más grandes, necesitarías lui + addi
+            raise ValueError(f"Symbol address {symbol_address} too large for simple la implementation")
+
+    # LOAD/STORE GLOBALES (implementación simplificada)
+    @_('LB_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        # lb rd, symbol -> addi rd, x0, 0; lb rd, symbol_address(rd) (simplificado)
+        global count_line
+        symbol_address = self.label_dict.get(p.LABEL, 0)
+        
+        if -2048 <= symbol_address <= 2047:
+            # Usar lb con x0 como base si la dirección es pequeña
+            ins_info = ins_type_I['lb']
+            rd = Registros(p.REGISTER)
+            rs1 = "00000"  # x0
+            imm = num_binary(symbol_address, 12)
+            binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_i', binary_instruction)
+        else:
+            raise ValueError(f"Global load address {symbol_address} too large for simple implementation")
+
+    @_('LH_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        # Similar a LB_GLOBAL pero para half-word
+        global count_line
+        symbol_address = self.label_dict.get(p.LABEL, 0)
+        
+        if -2048 <= symbol_address <= 2047:
+            ins_info = ins_type_I['lh']
+            rd = Registros(p.REGISTER)
+            rs1 = "00000"  # x0
+            imm = num_binary(symbol_address, 12)
+            binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_i', binary_instruction)
+        else:
+            raise ValueError(f"Global load address {symbol_address} too large for simple implementation")
+
+    @_('LW_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        # Similar a LB_GLOBAL pero para word
+        global count_line
+        symbol_address = self.label_dict.get(p.LABEL, 0)
+        
+        if -2048 <= symbol_address <= 2047:
+            ins_info = ins_type_I['lw']
+            rd = Registros(p.REGISTER)
+            rs1 = "00000"  # x0
+            imm = num_binary(symbol_address, 12)
+            binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_i', binary_instruction)
+        else:
+            raise ValueError(f"Global load address {symbol_address} too large for simple implementation")
+
+    @_('SB_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        # sb rs, symbol (simplificado)
+        global count_line
+        symbol_address = self.label_dict.get(p.LABEL, 0)
+        
+        if -2048 <= symbol_address <= 2047:
+            ins_info = ins_type_S['sb']
+            rs1 = "00000"  # x0 como base
+            rs2 = Registros(p.REGISTER)
+            imm = num_binary(symbol_address, 12)
+            imm_high = imm[:7]  # Bits 11 a 5
+            imm_low = imm[7:]   # Bits 4 a 0
+            binary_instruction = f"{imm_high}{rs2}{rs1}{ins_info['funct3']}{imm_low}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_s', binary_instruction)
+        else:
+            raise ValueError(f"Global store address {symbol_address} too large for simple implementation")
+
+    @_('SH_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        # Similar a SB_GLOBAL pero para half-word
+        global count_line
+        symbol_address = self.label_dict.get(p.LABEL, 0)
+        
+        if -2048 <= symbol_address <= 2047:
+            ins_info = ins_type_S['sh']
+            rs1 = "00000"  # x0 como base
+            rs2 = Registros(p.REGISTER)
+            imm = num_binary(symbol_address, 12)
+            imm_high = imm[:7]  # Bits 11 a 5
+            imm_low = imm[7:]   # Bits 4 a 0
+            binary_instruction = f"{imm_high}{rs2}{rs1}{ins_info['funct3']}{imm_low}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_s', binary_instruction)
+        else:
+            raise ValueError(f"Global store address {symbol_address} too large for simple implementation")
+
+    @_('SW_GLOBAL REGISTER COMMA LABEL')
+    def line(self, p):
+        # Similar a SB_GLOBAL pero para word
+        global count_line
+        symbol_address = self.label_dict.get(p.LABEL, 0)
+        
+        if -2048 <= symbol_address <= 2047:
+            ins_info = ins_type_S['sw']
+            rs1 = "00000"  # x0 como base
+            rs2 = Registros(p.REGISTER)
+            imm = num_binary(symbol_address, 12)
+            imm_high = imm[:7]  # Bits 11 a 5
+            imm_low = imm[7:]   # Bits 4 a 0
+            binary_instruction = f"{imm_high}{rs2}{rs1}{ins_info['funct3']}{imm_low}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_s', binary_instruction)
+        else:
+            raise ValueError(f"Global store address {symbol_address} too large for simple implementation")
+
+    # SALTOS CONDICIONALES CON UN OPERANDO
+    @_('BEQZ REGISTER COMMA LABEL')
+    def line(self, p):
+        # beqz rs, offset -> beq rs, x0, offset
+        global count_line
+        ins_info = ins_type_B['beq']
+        rs1 = Registros(p.REGISTER)
+        rs2 = "00000"  # x0
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        # Formato B: imm[12|10:5] rs2 rs1 funct3 imm[4:1|11] opcode
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+     @_('BNEZ REGISTER COMMA LABEL')
+    def line(self, p):
+        # bnez rs, offset -> bne rs, x0, offset
+        global count_line
+        ins_info = ins_type_B['bne']
+        rs1 = Registros(p.REGISTER)
+        rs2 = "00000"  # x0
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+    @_('BLEZ REGISTER COMMA LABEL')
+    def line(self, p):
+        # blez rs, offset -> bge x0, rs, offset
+        global count_line
+        ins_info = ins_type_B['bge']
+        rs1 = "00000"  # x0
+        rs2 = Registros(p.REGISTER)
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+    @_('BGEZ REGISTER COMMA LABEL')
+    def line(self, p):
+        # bgez rs, offset -> bge rs, x0, offset
+        global count_line
+        ins_info = ins_type_B['bge']
+        rs1 = Registros(p.REGISTER)
+        rs2 = "00000"  # x0
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+    @_('BLTZ REGISTER COMMA LABEL')
+    def line(self, p):
+        # bltz rs, offset -> blt rs, x0, offset
+        global count_line
+        ins_info = ins_type_B['blt']
+        rs1 = Registros(p.REGISTER)
+        rs2 = "00000"  # x0
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+    @_('BGTZ REGISTER COMMA LABEL')
+    def line(self, p):
+        # bgtz rs, offset -> blt x0, rs, offset
+        global count_line
+        ins_info = ins_type_B['blt']
+        rs1 = "00000"  # x0
+        rs2 = Registros(p.REGISTER)
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+    # SALTOS CONDICIONALES CON DOS OPERANDOS
+    @_('BGT REGISTER COMMA REGISTER COMMA LABEL')
+    def line(self, p):
+        # bgt rs, rt, offset -> blt rt, rs, offset (intercambiar rs y rt)
+        global count_line
+        ins_info = ins_type_B['blt']
+        rs1 = Registros(p.REGISTER1)  # rt (segundo registro)
+        rs2 = Registros(p.REGISTER0)  # rs (primer registro)
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+    @_('BLE REGISTER COMMA REGISTER COMMA LABEL')
+    def line(self, p):
+        # ble rs, rt, offset -> bge rt, rs, offset
+        global count_line
+        ins_info = ins_type_B['bge']
+        rs1 = Registros(p.REGISTER1)  # rt
+        rs2 = Registros(p.REGISTER0)  # rs
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+    @_('BGTU REGISTER COMMA REGISTER COMMA LABEL')
+    def line(self, p):
+        # bgtu rs, rt, offset -> bltu rt, rs, offset
+        global count_line
+        ins_info = ins_type_B['bltu']
+        rs1 = Registros(p.REGISTER1)  # rt
+        rs2 = Registros(p.REGISTER0)  # rs
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+    @_('BLEU REGISTER COMMA REGISTER COMMA LABEL')
+    def line(self, p):
+        # bleu rs, rt, offset -> bgeu rt, rs, offset
+        global count_line
+        ins_info = ins_type_B['bgeu']
+        rs1 = Registros(p.REGISTER1)  # rt
+        rs2 = Registros(p.REGISTER0)  # rs
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 13)
+        
+        imm12 = imm[0]
+        imm11 = imm[1]
+        imm10_5 = imm[2:8]
+        imm4_1 = imm[8:12]
+        
+        binary_instruction = f"{imm12}{imm10_5}{rs2}{rs1}{ins_info['funct3']}{imm4_1}{imm11}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_b', binary_instruction)
+
+    # SALTOS INCONDICIONALES
+    @_('J_PSEUDO LABEL')
+    def line(self, p):
+        # j offset -> jal x0, offset
+        global count_line
+        ins_info = ins_type_J['jal']
+        rd = "00000"  # x0
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 21)
+        
+        # Formato J: imm[20|10:1|11|19:12] rd opcode
+        imm20 = imm[0]
+        imm10_1 = imm[10:20]
+        imm11 = imm[9]
+        imm19_12 = imm[1:9]
+        
+        binary_instruction = f"{imm20}{imm10_1}{imm11}{imm19_12}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_j', binary_instruction)
+
+    @_('JAL_PSEUDO LABEL')
+    def line(self, p):
+        # jal offset -> jal x1, offset
+        global count_line
+        ins_info = ins_type_J['jal']
+        rd = "00001"  # x1
+        offset = self.label_dict[p.LABEL] - count_line
+        imm = num_binary(offset, 21)
+        
+        imm20 = imm[0]
+        imm10_1 = imm[10:20]
+        imm11 = imm[9]
+        imm19_12 = imm[1:9]
+        
+        binary_instruction = f"{imm20}{imm10_1}{imm11}{imm19_12}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_j', binary_instruction)
+
+    @_('JR REGISTER')
+    def line(self, p):
+        # jr rs -> jalr x0, rs, 0
+        global count_line
+        ins_info = ins_type_I['jalr']
+        rd = "00000"  # x0
+        rs1 = Registros(p.REGISTER)
+        imm = "000000000000"  # 0
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
+
+    @_('JALR_PSEUDO REGISTER')
+    def line(self, p):
+        # jalr rs -> jalr x1, rs, 0
+        global count_line
+        ins_info = ins_type_I['jalr']
+        rd = "00001"  # x1
+        rs1 = Registros(p.REGISTER)
+        imm = "000000000000"  # 0
+        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        count_line += 4
+        return ('instruction_i', binary_instruction)
+
+    @_('CALL LABEL')
+    def line(self, p):
+        # call offset -> jalr x1, x1, offset[11:0] (versión simple)
+        global count_line
+        ins_info = ins_type_I['jalr']
+        rd = "00001"  # x1
+        rs1 = "00001"  # x1
+        offset = self.label_dict.get(p.LABEL, 0)
+        
+        # Verificar si cabe en 12 bits
+        if -2048 <= offset <= 2047:
+            imm = num_binary(offset, 12)
+            binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_i', binary_instruction)
+        else:
+            raise ValueError(f"Call offset {offset} too large for simple call implementation")
+
+    @_('TAIL LABEL')
+    def line(self, p):
+        # tail offset -> jalr x0, x6, offset[11:0] (versión simple)
+        global count_line
+        ins_info = ins_type_I['jalr']
+        rd = "00000"  # x0
+        rs1 = "00110"  # x6
+        offset = self.label_dict.get(p.LABEL, 0)
+        
+        # Verificar si cabe en 12 bits
+        if -2048 <= offset <= 2047:
+            imm = num_binary(offset, 12)
+            binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+            count_line += 4
+            return ('instruction_i', binary_instruction)
+        else:
+            raise ValueError(f"Tail offset {offset} too large for simple tail implementation")
 
     @_('NEWLINE')
     def line(self, p):
