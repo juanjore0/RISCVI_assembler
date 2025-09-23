@@ -142,19 +142,9 @@ if __name__ == "__main__":
 
     .text
     main:
-        nop
-        mv x1, x2
-        not x3, x4
-        beqz x5, loop
-        j end
-        lw x6, var
-        sw x7, result
-    loop:
         addi x1, x2, 10
         lw x3, 0(x1)
         sw x3, 4(x2) # store word
-    end:
-        ret
     """
 
     lexer = RISCVLexer()
