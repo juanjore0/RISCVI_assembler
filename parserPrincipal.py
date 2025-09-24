@@ -809,8 +809,10 @@ class RISCVParser(Parser):
             raise ValueError(f"Jump offset {offset} out of range for 21 bits")
         
         imm = num_binary(offset, 21)
-        
+        #traduccion directa del offset
+        #signo, pos 31
         imm20 = imm[0]
+
         imm10_1 = imm[10:20]
         imm11 = imm[9]
         imm19_12 = imm[1:9]
