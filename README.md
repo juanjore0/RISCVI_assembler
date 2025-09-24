@@ -95,22 +95,12 @@ El proceso sigue un enfoque clásico de dos pasadas para resolver las dependenci
 Primera Pasada (parserlabel.py):
 El assembler.py invoca al ParserLabel.
 
-Este parser lee todo el archivo .asm con un objetivo simple: identificar todas las etiquetas (como main: o loop:) y calcular su dirección de memoria (PC).
-
-Las etiquetas y sus direcciones se almacenan en una tabla de símbolos.
-
+Este parser lee todo el archivo .asm con un objetivo simple: identificar todas las etiquetas (como main: o loop:) y calcular su dirección de memoria (PC). Las etiquetas y sus direcciones se almacenan en una tabla de símbolos.
 También procesa la sección .data para asignar direcciones a las variables con la ayuda de memory.py.
 
 Segunda Pasada (parserPrincipal.py):
-
-El assembler.py invoca al RISCVParser, entregándole la tabla de símbolos creada en la primera pasada.
-
-Este parser vuelve a leer el archivo .asm, pero esta vez traduce cada instrucción a código máquina.
-
-Cuando encuentra una instrucción que usa una etiqueta (ej. jal main), busca su dirección en la tabla de símbolos para calcular el offset necesario.
-
+El assembler.py invoca al RISCVParser, entregándole la tabla de símbolos creada en la primera pasada. Este parser vuelve a leer el archivo .asm, pero esta vez traduce cada instrucción a código máquina. Cuando encuentra una instrucción que usa una etiqueta (ej. jal main), busca su dirección en la tabla de símbolos para calcular el offset necesario.
 Consulta los diccionarios.py para obtener los opcodes y functs correspondientes a cada instrucción.
-
 El resultado final es una lista de instrucciones en formato binario.
 
 Generación de Archivos:
