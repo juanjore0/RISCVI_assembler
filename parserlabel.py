@@ -7,10 +7,9 @@ class ParserLabel(Parser):
 
     def __init__(self):
         self.count_line = 0  # contador de PC
-        self.label_dict = {}  # diccionario de etiquetas
-        self.data_section = [] #variables en .data
-        self.text_section = [] #instrucciones en .text
+        self.label_dict = {}  # diccionario de etiquetas encontradas
         self.memory = MemoryManager()
+        
     # ----------- Reglas principales -----------
 
     @_('program')
@@ -21,18 +20,19 @@ class ParserLabel(Parser):
     def program(self, p):
         return (p.line if isinstance(p.line, list) else [p.line]) + p.program
 
+    # Caso base: un programa puede ser solo una "line"
     @_('line')
     def program(self, p):
         return p.line if isinstance(p.line, list) else [p.line]
 
     # ----------- Reglas de línea -----------
 
-    # Directivas - agregar regla para manejar .text y .data
+    # Directivas -  manejar .text y .data
     @_('DIRECTIVE')
     def line(self, p):
         return ('directive', p.DIRECTIVE)
 
-    # Solo etiqueta con dos puntos
+    # Solo etiqueta con dos puntos (ej. main:)
     @_('LABEL COLON')
     def line(self, p):
         self.label_dict[p.LABEL] = self.count_line
@@ -40,10 +40,12 @@ class ParserLabel(Parser):
 
      # ----------- DATA DEFINITIONS -----------
 
+    # Ejemplo: var: .word 10
     @_('LABEL COLON DATA_DIRECTIVE NUMBER')
     def line(self, p):
+        # Guardar en memoria
         self.memory.add_data(p.LABEL, p.DATA_DIRECTIVE, p.NUMBER)
-        # Ejemplo: x: .word 10
+
         return ('data_def', {
             'label': p.LABEL,
             'type': p.DATA_DIRECTIVE,
@@ -72,8 +74,9 @@ class ParserLabel(Parser):
         return [p.NUMBER] + p.number_list
     
 
-
     # ----------- INSTRUCCIONES BASE -----------
+
+    # Cada instrucción ocupa 4 bytes, por eso se incrementa count_line en +4.
 
     # Tipo R
     @_('INSTRUCTION_TYPE_R REGISTER COMMA REGISTER COMMA REGISTER')
@@ -303,9 +306,12 @@ class ParserLabel(Parser):
         return []
 
     # ----------- Método para obtener etiquetas -----------
+
     def get_labels(self, input_file_path):
         """
-        Lee el archivo, parsea para encontrar etiquetas y devuelve el diccionario.
+        Realiza la primera pasada sobre el código ensamblador.
+        Recorre todo el archivo, identificando las etiquetas y su dirección.
+        Devuelve un diccionario con las etiquetas encontradas.
         """
         with open(input_file_path, 'r') as archivo:
             full_text = archivo.read()
@@ -322,6 +328,7 @@ class ParserLabel(Parser):
         
         return parser_pass_one.label_dict
 
+    # ----------- Manejo de errores -----------
     def error(self, p):
         if p is not None:
             print(f"Error sintáctico en la línea {p.lineno}: Token inesperado '{p.value}'")
