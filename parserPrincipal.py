@@ -67,6 +67,16 @@ class RISCVParser(Parser):
         
     @_('INSTRUCTION_TYPE_R REGISTER COMMA REGISTER COMMA REGISTER')
     def line(self, p):
+        """
+        Funcion que procesa las instrucciones de tipo R.
+        Args: 
+            p: objeto que contiene los componentes de la instrucción.
+            - INSTRUCTION_TYPE_R: tipo de instrucción (e.g., 'add', 'sub').
+            - REGISTER: registros involucrados (rd, rs1, rs2).
+
+        Returns:
+            Tupla con el tipo de instrucción y su representación binaria.
+        """
         global count_line
         ins_info = ins_type_R[p.INSTRUCTION_TYPE_R]
         #Formato: funct7 | rs2 | rs1 | funct3 | rd | opcode
@@ -79,6 +89,16 @@ class RISCVParser(Parser):
     
     @_('INSTRUCTION_TYPE_I REGISTER COMMA REGISTER COMMA NUMBER')
     def line(self, p):
+        """
+        Funcion que procesa las instrucciones de tipo I.
+        Args: 
+            p: objeto que contiene los componentes de la instrucción.
+            - INSTRUCTION_TYPE_I: tipo de instrucción (e.g., 'addi', 'andi').
+            - REGISTER: registros involucrados (rd, rs1).
+            - NUMBER: valor inmediato.
+        Returns:
+            Tupla con el tipo de instrucción y su representación binaria.
+        """
         global count_line
         ins_info = ins_type_I[p.INSTRUCTION_TYPE_I]
         rd = Registros(p.REGISTER0)
@@ -308,7 +328,10 @@ class RISCVParser(Parser):
 # PSEUDOINSTRUCCIONES CON REGISTRO E INMEDIATO/ETIQUETA
     @_('LI REGISTER COMMA NUMBER')
     def line(self, p):
-        # li rd, immediate -> addi rd, x0, immediate
+        """
+        Pseudoinstrucción li rd, immediate
+        Traduce a: addi rd, x0, immediate
+        """
         global count_line
         immediate_value = int(p.NUMBER)
         
@@ -329,6 +352,10 @@ class RISCVParser(Parser):
 
     @_('LA REGISTER COMMA LABEL')
     def line(self, p):
+        """
+        Pseudoinstrucción la rd, label
+        Traduce a: addi rd, x0, address_of_label
+        """
         global count_line
         if p.LABEL in self.memory.memory:
             symbol_address = self.memory.memory[p.LABEL]["addr"]
@@ -347,6 +374,10 @@ class RISCVParser(Parser):
     # LOAD/STORE GLOBALES (implementación simplificada)
     @_('LB_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
+        """
+        Pseudoinstrucción lb_global rd, label
+        Traduce a: lb rd, 0(x0) con la dirección de label
+        """
         global count_line
         # Buscar la dirección en memoria
         if p.LABEL in self.memory.memory:
@@ -368,6 +399,10 @@ class RISCVParser(Parser):
 
     @_('LH_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
+        """
+        Pseudoinstrucción lh_global rd, label
+        Traduce a: lh rd, 0(x0) con la dirección de label
+        """
         global count_line
         # Buscar la dirección en memoria
         if p.LABEL in self.memory.memory:
@@ -389,6 +424,10 @@ class RISCVParser(Parser):
 
     @_('LW_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
+        """
+        Pseudoinstrucción lw_global rd, label
+        Traduce a: lw rd, 0(x0) con la dirección de label
+        """
         global count_line
         if p.LABEL in self.memory.memory:
             symbol_address = self.memory.memory[p.LABEL]["addr"]
@@ -409,6 +448,10 @@ class RISCVParser(Parser):
 
     @_('SB_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
+        """
+        Pseudoinstrucción sb_global rs2, label
+        Traduce a: sb rs2, 0(x0) con la dirección de label
+        """
         global count_line
         # Buscar la dirección en memoria
         if p.LABEL in self.memory.memory:
@@ -432,6 +475,10 @@ class RISCVParser(Parser):
 
     @_('SH_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
+        """
+        Pseudoinstrucción sh_global rs2, label
+        Traduce a: sh rs2, 0(x0) con la dirección de label
+        """
         global count_line
         # Buscar la dirección en memoria
         if p.LABEL in self.memory.memory:
@@ -456,6 +503,10 @@ class RISCVParser(Parser):
 
     @_('SW_GLOBAL REGISTER COMMA LABEL')
     def line(self, p):
+        """
+        Pseudoinstrucción sw_global rs2, label
+        Traduce a: sw rs2, 0(x0) con la dirección de label
+        """
         global count_line
         # Buscar la dirección en memoria
         if p.LABEL in self.memory.memory:
@@ -481,7 +532,10 @@ class RISCVParser(Parser):
     # SALTOS CONDICIONALES CON UN OPERANDO
     @_('BEQZ REGISTER COMMA LABEL')
     def line(self, p):
-        # beqz rs, offset -> beq rs, x0, offset
+        """
+        Pseudoinstrucción beqz rs, label
+        Traduce a: beq rs, x0, label
+        """
         global count_line
         ins_info = ins_type_B['beq']
         rs1 = Registros(p.REGISTER)
@@ -505,7 +559,10 @@ class RISCVParser(Parser):
 
     @_('BNEZ REGISTER COMMA LABEL')
     def line(self, p):
-        # bnez rs, offset -> bne rs, x0, offset
+        """
+        Pseudoinstrucción bnez rs, label
+        Traduce a: bne rs, x0, label
+        """
         global count_line
         ins_info = ins_type_B['bne']
         rs1 = Registros(p.REGISTER)
@@ -527,7 +584,10 @@ class RISCVParser(Parser):
 
     @_('BLEZ REGISTER COMMA LABEL')
     def line(self, p):
-        # blez rs, offset -> bge x0, rs, offset
+        """
+        Pseudoinstrucción blez rs, label
+        Traduce a: ble rs, x0, label
+        """
         global count_line
         ins_info = ins_type_B['bge']
         rs1 = "00000"  # x0
@@ -549,7 +609,10 @@ class RISCVParser(Parser):
 
     @_('BGEZ REGISTER COMMA LABEL')
     def line(self, p):
-        # bgez rs, offset -> bge rs, x0, offset
+        """
+        Pseudoinstrucción bgez rs, label
+        Traduce a: bge rs, x0, label
+        """
         global count_line
         ins_info = ins_type_B['bge']
         rs1 = Registros(p.REGISTER)
@@ -571,7 +634,10 @@ class RISCVParser(Parser):
 
     @_('BLTZ REGISTER COMMA LABEL')
     def line(self, p):
-        # bltz rs, offset -> blt rs, x0, offset
+        """
+        Pseudoinstrucción bltz rs, label
+        Traduce a: blt rs, x0, label
+        """
         global count_line
         ins_info = ins_type_B['blt']
         rs1 = Registros(p.REGISTER)
