@@ -47,7 +47,7 @@ def main(asm_file, hex_file, bin_file):
             f_bin.write(f"{instruction_code:032b}\n")
     
     print("\n--- Data Section ---")
-    memory.dump_data()
+    memory.jump_data()
 
     print(f"Assembly complete. Output files: {hex_file}, {bin_file}")
 

@@ -39,6 +39,6 @@ class MemoryManager:
         # Avanzar la dirección actual para el siguiente dato
         self.current_addr += size
 
-    def dump_data(self): #mostrar en consola la memoria de datos
+    def jump_data(self): #mostrar en consola la memoria de datos
         for label, info in self.memory.items():
             print(f"{label} ({info['type']}): addr={hex(info['addr'])}, value={info['value']}")
