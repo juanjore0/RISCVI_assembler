@@ -46,6 +46,7 @@ Crea un archivo con tu código RISC-V. Por ejemplo, programa.asm:
 
 Fragmento de código
 
+```python
 .data
 var1: .word 100      # variable de 4 bytes (word)
 var2: .byte 127      # variable de 1 byte
@@ -69,6 +70,8 @@ loop:
     # Finalizar el programa
     li    a7, 10
     ecall
+```
+
 ### 3. Ejecuta el Ensamblador
 Ejecuta el script assembler.py desde tu terminal, pasándole como argumentos el archivo de entrada y los nombres de los archivos de salida.
 
