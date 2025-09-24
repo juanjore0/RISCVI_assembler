@@ -36,7 +36,6 @@ memory.py: Gestor de Memoria. Simula la sección .data, asignando direcciones a 
 diccionarios.py: Base de Datos de Instrucciones. Contiene las definiciones (opcodes, funct3, funct7) para todas las instrucciones soportadas, sirviendo como referencia para la traducción.
 
 ## ¿Cómo Usarlo? 
-Para ensamblar un archivo, necesitas tener Python instalado y la librería sly.
 
 ### 1. Requisitos Previos
 Asegúrate de tener instalada la librería sly. Si no la tienes, puedes instalarla fácilmente con pip:
