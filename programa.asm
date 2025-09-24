@@ -1,30 +1,23 @@
 .data
-var1: .word 100       # variable de 4 bytes (word)
-var2: .byte 0x7F      # variable de 1 byte
-var3: .half 300       # variable de 2 bytes (halfword)
+var1: .word 100      # variable de 4 bytes (word)
+var2: .byte 127      # variable de 1 byte
+var3: .half 300      # variable de 2 bytes (halfword)
 
 .text
 main:
-    # ---- LOADS ----
-    la   x10, var1        # cargar dirección de var1
-    lw   x5, 0(x10)       # x5 = contenido de var1 (100)
+    # Cargar la dirección de var1 en x10 y su valor en x5
+    la    x10, var1
+    lw    x5, 0(x10)
 
-    la   x11, var2        # cargar dirección de var2
-    lb   x6, 0(x11)       # x6 = contenido de var2 (0x7F con signo)
+    # Cargar la dirección de var2 en x11 y su valor en x6
+    la    x11, var2
+    lb    x6, 0(x11)
 
-    la   x12, var3        # cargar dirección de var3
-    lh   x7, 0(x12)       # x7 = contenido de var3 (300 con signo)
+loop:
+    # Ejemplo de bucle y salto
+    addi  x5, x5, -1
+    bnez  x5, loop
 
-    # ---- STORES ----
-    li   x8, 200          # cargar inmediato en x8
-    sw   x8, 0(x10)       # var1 = 200
-
-    li   x9, -1
-    sb   x9, 0(x11)       # var2 = -1 (0xFF)
-
-    li   x13, 1234
-    sh   x13, 0(x12)      # var3 = 1234
-
-    # salir del programa (ecall en RARS)
-    li   a7, 10
+    # Finalizar el programa
+    li    a7, 10
     ecall

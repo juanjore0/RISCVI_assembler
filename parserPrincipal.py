@@ -28,14 +28,15 @@ def validate_imm(imm, bits):
         raise ValueError(f"Immediate value {imm} out of range for {bits} bits")
 
 class RISCVParser(Parser):
+    # Definición de los tokens basados en el lexer
     tokens = RISCVLexer.tokens
 
     def __init__(self, label_dict, memory):
         super().__init__()
-        self.label_dict = label_dict
+        self.label_dict = label_dict  # Diccionario de etiquetas
         self.memory = memory
 
-    # Reglas para un programa completo
+    # Reglas. Un programa es una o más líneas
     @_('line program')
     def program(self, p):
         return [p.line] + p.program
@@ -62,11 +63,13 @@ class RISCVParser(Parser):
     @_('LABEL COLON')
     def line(self, p):
         return ('label', p.LABEL)
+    
         
     @_('INSTRUCTION_TYPE_R REGISTER COMMA REGISTER COMMA REGISTER')
     def line(self, p):
         global count_line
         ins_info = ins_type_R[p.INSTRUCTION_TYPE_R]
+        #Formato: funct7 | rs2 | rs1 | funct3 | rd | opcode
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
         rs2 = Registros(p.REGISTER2)
