@@ -71,6 +71,10 @@ class RISCVParser(Parser):
         ins_info = ins_type_I[p.INSTRUCTION_TYPE_I]
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
+
+        if not (-2048 <= int(p.NUMBER) <= 2047):
+            raise ValueError(f"Immediate value {p.NUMBER} out of range for 12 bits")
+        
         imm = num_binary(int(p.NUMBER), 12)
         binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
         count_line += 4
@@ -82,6 +86,10 @@ class RISCVParser(Parser):
         ins_info = ins_type_I[p.INSTRUCTION_TYPE_I_LOAD]
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
+
+        if not (-2048 <= int(p.NUMBER) <= 2047):
+            raise ValueError(f"Immediate value {p.NUMBER} out of range for 12 bits")
+
         imm = num_binary(int(p.NUMBER), 12)
         binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
         count_line += 4
@@ -107,6 +115,10 @@ class RISCVParser(Parser):
         ins_info = ins_type_S[p.INSTRUCTION_TYPE_S]
         rs1 = Registros(p.REGISTER1)
         rs2 = Registros(p.REGISTER0)
+
+        if not (-2048 <= int(p.NUMBER) <= 2047):
+            raise ValueError(f"Immediate value {p.NUMBER} out of range for 12 bits")
+
         imm = num_binary(int(p.NUMBER), 12)
         imm_high = imm[:7]  # Bits 11 a 5
         imm_low = imm[7:]   # Bits 4 a 0
@@ -119,6 +131,10 @@ class RISCVParser(Parser):
         global count_line
         ins_info = ins_type_U[p.INSTRUCTION_TYPE_U]
         rd = Registros(p.REGISTER)
+
+        if not (-524288 <= int(p.NUMBER) <= 524287):
+            raise ValueError(f"Immediate value {p.NUMBER} out of range for 20 bits")
+
         imm = num_binary(int(p.NUMBER), 20)
         binary_instruction = f"{imm}{rd}{ins_info['opcode']}"
         count_line += 4
@@ -131,6 +147,10 @@ class RISCVParser(Parser):
         rs1 = Registros(p.REGISTER0)
         rs2 = Registros(p.REGISTER1)
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
         # Extraer los bits del inmediato para el formato B
         imm12 = imm[0]
@@ -148,6 +168,10 @@ class RISCVParser(Parser):
         ins_info = ins_type_J[p.INSTRUCTION_TYPE_J]
         rd = Registros(p.REGISTER)
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-1048576 <= offset <= 1048575):
+            raise ValueError(f"Jump offset {offset} out of range for 21 bits")
+        
         imm = num_binary(offset, 21)
         # Extraer los bits del inmediato para el formato J
         imm20 = imm[0]
@@ -452,6 +476,10 @@ class RISCVParser(Parser):
         rs1 = Registros(p.REGISTER)
         rs2 = "00000"  # x0
         offset = self.label_dict[p.LABEL] - count_line
+        
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
         
         # Formato B: imm[12|10:5] rs2 rs1 funct3 imm[4:1|11] opcode
@@ -472,8 +500,11 @@ class RISCVParser(Parser):
         rs1 = Registros(p.REGISTER)
         rs2 = "00000"  # x0
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
-        
         imm12 = imm[0]
         imm11 = imm[1]
         imm10_5 = imm[2:8]
@@ -491,8 +522,11 @@ class RISCVParser(Parser):
         rs1 = "00000"  # x0
         rs2 = Registros(p.REGISTER)
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
-        
         imm12 = imm[0]
         imm11 = imm[1]
         imm10_5 = imm[2:8]
@@ -510,8 +544,11 @@ class RISCVParser(Parser):
         rs1 = Registros(p.REGISTER)
         rs2 = "00000"  # x0
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
-        
         imm12 = imm[0]
         imm11 = imm[1]
         imm10_5 = imm[2:8]
@@ -529,6 +566,10 @@ class RISCVParser(Parser):
         rs1 = Registros(p.REGISTER)
         rs2 = "00000"  # x0
         offset = self.label_dict[p.LABEL] - count_line
+        
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
         
         imm12 = imm[0]
@@ -548,6 +589,10 @@ class RISCVParser(Parser):
         rs1 = "00000"  # x0
         rs2 = Registros(p.REGISTER)
         offset = self.label_dict[p.LABEL] - count_line
+        
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
         
         imm12 = imm[0]
@@ -568,6 +613,10 @@ class RISCVParser(Parser):
         rs1 = Registros(p.REGISTER1)  # rt (segundo registro)
         rs2 = Registros(p.REGISTER0)  # rs (primer registro)
         offset = self.label_dict[p.LABEL] - count_line
+                
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
         
         imm12 = imm[0]
@@ -587,6 +636,10 @@ class RISCVParser(Parser):
         rs1 = Registros(p.REGISTER1)  # rt
         rs2 = Registros(p.REGISTER0)  # rs
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+        
         imm = num_binary(offset, 13)
         
         imm12 = imm[0]
@@ -606,8 +659,11 @@ class RISCVParser(Parser):
         rs1 = Registros(p.REGISTER1)  # rt
         rs2 = Registros(p.REGISTER0)  # rs
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
-        
         imm12 = imm[0]
         imm11 = imm[1]
         imm10_5 = imm[2:8]
@@ -625,6 +681,10 @@ class RISCVParser(Parser):
         rs1 = Registros(p.REGISTER1)  # rt
         rs2 = Registros(p.REGISTER0)  # rs
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-4096 <= offset <= 4095):
+            raise ValueError(f"Branch offset {offset} out of range for 13 bits")
+
         imm = num_binary(offset, 13)
         
         imm12 = imm[0]
@@ -644,6 +704,10 @@ class RISCVParser(Parser):
         ins_info = ins_type_J['jal']
         rd = "00000"  # x0
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-1048576 <= offset <= 1048575):
+            raise ValueError(f"Jump offset {offset} out of range for 21 bits")
+        
         imm = num_binary(offset, 21)
         
         # Formato J: imm[20|10:1|11|19:12] rd opcode
@@ -663,6 +727,10 @@ class RISCVParser(Parser):
         ins_info = ins_type_J['jal']
         rd = "00001"  # x1
         offset = self.label_dict[p.LABEL] - count_line
+
+        if not (-1048576 <= offset <= 1048575):
+            raise ValueError(f"Jump offset {offset} out of range for 21 bits")
+        
         imm = num_binary(offset, 21)
         
         imm20 = imm[0]
