@@ -18,6 +18,15 @@ def num_binary(numero, bits):
         # Complemento a dos para números negativos
         return bin(2**bits + numero)[2:]
 
+def validate_imm(imm, bits):
+    """
+    Valida que el valor inmediato esté dentro del rango permitido para 'bits' bits con signo.
+    """
+    min_val = -(2**(bits - 1))
+    max_val = 2**(bits - 1) - 1
+    if not (min_val <= imm <= max_val):
+        raise ValueError(f"Immediate value {imm} out of range for {bits} bits")
+
 class RISCVParser(Parser):
     tokens = RISCVLexer.tokens
 
@@ -72,8 +81,7 @@ class RISCVParser(Parser):
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
 
-        if not (-2048 <= int(p.NUMBER) <= 2047):
-            raise ValueError(f"Immediate value {p.NUMBER} out of range for 12 bits")
+        validate_imm(int(p.NUMBER), 12)
         
         imm = num_binary(int(p.NUMBER), 12)
         binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
