@@ -1,5 +1,5 @@
 
-Ensamblador RISC-V en Python 
+##Ensamblador RISC-V en Python 
 
 Este proyecto es un ensamblador de dos pasadas para un subconjunto de la arquitectura RISC-V de 32 bits (RV32I), desarrollado completamente en Python. El programa es capaz de leer código ensamblador RISC-V, procesar etiquetas, directivas de datos e instrucciones, y generar como salida los archivos correspondientes en código máquina binario y hexadecimal.
 
