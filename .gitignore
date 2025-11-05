@@ -27,7 +27,7 @@ QUARTUS/*
 *.sft
 *.svo
 
-
+# Ignorar bases de datos temporales de Quartus
 QUARTUS_VGA/db/
 QUARTUS_VGA/incremental_db/
 QUARTUS_VGA/simulation/
