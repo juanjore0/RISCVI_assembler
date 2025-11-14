@@ -18,24 +18,19 @@ module registerUnit (
   // Exponer registros para VGA
   assign registers_out = registers;
 
-  // Escritura síncrona con reset
-  always_ff @(posedge clk) begin
-    if (reset) begin
-      // Al resetear, limpiar todos los registros
-      for (int i = 0; i < 32; i++) begin
-        registers[i] <= 32'd0;
-      end
-      registers[2] <= 32'd24; // x2 (sp) inicializado en 24
-    end else begin
-      // Operación normal
-      if (writeEnable && rd != 5'd0)
-        registers[rd] <= data;
-      registers[0] <= 32'd0; // x0 siempre en 0
+always_ff @(posedge clk) begin
+  if (reset) begin
+    // Limpiar todos los registros EXCEPTO x2
+    for (int i = 0; i < 32; i++) begin
+      if (i == 2)
+        registers[i] <= 32'd24;  // x2 (sp) inicializado REVISAR EN DONDE SALEEEE
+      else
+        registers[i] <= 32'd0;   // Resto en 0
     end
+  end else begin
+    // Operación normal
+    if (writeEnable && rd != 5'd0)
+      registers[rd] <= data;
+    registers[0] <= 32'd0; // x0 siempre en 0
   end
-
-  // Lectura combinacional
-  assign rs1Data = registers[rs1];
-  assign rs2Data = registers[rs2];
-
-endmodule
+end
