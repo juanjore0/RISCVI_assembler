@@ -35,7 +35,7 @@ module control_unit (
         alu_b_src    = 1'b0;
         dm_write     = 1'b0;
         dm_ctrl      = 3'bxxx;
-        br_op        = 5'b00xxx;
+        br_op        = 5'b00000;
         ru_data_src  = 2'b00;
       end
       
@@ -46,7 +46,7 @@ module control_unit (
         alu_b_src    = 1'b1;
         dm_write     = 1'b0;
         dm_ctrl      = 3'bxxx;
-        br_op        = 5'b00xxx;
+        br_op        = 5'b00000;
         ru_data_src  = 2'b00;
         
         // Diferenciar shifts de otras operaciones
@@ -66,20 +66,56 @@ module control_unit (
         alu_b_src    = 1'b1;
         dm_write     = 1'b0;
         dm_ctrl      = funct3;
-        br_op        = 5'b00xxx;
+        br_op        = 5'b00000;
         ru_data_src  = 2'b01;
       end
 		
-		7'b0100011: begin // TIPO S (Store)
-		  ru_write     = 1'b0;    // NO escribir en registros
+		  7'b0100011: begin // TIPO S (Store)
+		    ru_write     = 1'b0;    // NO escribir en registros
         alu_op       = 4'b0000; // ADD (calcular dirección)
         imm_src      = 3'b001;  // Inmediato tipo S
         alu_a_src    = 2'b00;   // rs1 (registro base)
         alu_b_src    = 1'b1;    // Usar inmediato (offset)
         dm_write     = 1'b1;    // SÍ escribir en memoria
         dm_ctrl      = funct3;  // Control según tipo de store (SB, SH, SW)
-        br_op        = 5'b00xxx;
+        br_op        = 5'b00000;
         ru_data_src  = 2'bxx;   // No importa, no escribimos en registros
+      end
+
+      7'b1100011: begin // Tipo B (Branch: BEQ, BNE, BLT, BGE, BLTU, BGEU)
+        ru_write     = 1'b0;    // NO escribir en registros
+        alu_op       = 4'b1000; // SUB (para comparaciones)
+        imm_src      = 3'b010;  // Inmediato tipo B
+        alu_a_src    = 2'b00;   // rs1
+        alu_b_src    = 1'b0;    // rs2 (comparar registros)
+        dm_write     = 1'b0;    // NO escribir en memoria
+        dm_ctrl      = 3'bxxx;
+        br_op        = {2'b01, funct3}; // Activar branch + tipo según funct3
+        ru_data_src  = 2'bxx;   // No importa
+      end
+          
+      7'b1101111: begin // JAL (Jump And Link)
+        ru_write     = 1'b1;    // SÍ escribir en rd (dirección de retorno)
+        alu_op       = 4'b0000; // ADD (PC + imm)
+        imm_src      = 3'b011;  // Inmediato tipo J
+        alu_a_src    = 2'b01;   // PC como operando A
+        alu_b_src    = 1'b1;    // Inmediato como operando B
+        dm_write     = 1'b0;
+        dm_ctrl      = 3'bxxx;
+        br_op        = 5'b10000; // Jump incondicional
+        ru_data_src  = 2'b10;   // PC+4 (dirección de retorno)
+      end
+
+      7'b1100111: begin // JALR (Jump And Link Register)
+        ru_write     = 1'b1;    // SÍ escribir en rd (dirección de retorno)
+        alu_op       = 4'b0000; // ADD (rs1 + imm)
+        imm_src      = 3'b000;  // Inmediato tipo I
+        alu_a_src    = 2'b00;   // rs1 como operando A
+        alu_b_src    = 1'b1;    // Inmediato como operando B
+        dm_write     = 1'b0;
+        dm_ctrl      = 3'bxxx;
+        br_op        = 5'b10001; // Jump incondicional desde registro
+        ru_data_src  = 2'b10;   // PC+4 (dirección de retorno)
       end
 
       7'b0110111: begin // LUI (Load Upper Immediate)
@@ -90,7 +126,7 @@ module control_unit (
         alu_b_src    = 1'bx;    // No importa
         dm_write     = 1'b0;    // NO escribir en memoria
         dm_ctrl      = 3'bxxx;  // No importa
-        br_op        = 5'b00xxx;
+        br_op        = 5'b00000;
         ru_data_src  = 2'b11;   // Escribir directamente el inmediato
       end
       
@@ -102,9 +138,21 @@ module control_unit (
         alu_b_src    = 1'b1;    // Usar inmediato como operando B
         dm_write     = 1'b0;    // NO escribir en memoria
         dm_ctrl      = 3'bxxx;  // No importa
-        br_op        = 5'b00xxx;
+        br_op        = 5'b00000;
         ru_data_src  = 2'b00;   // Resultado de ALU (PC + imm)
-      end		    
+      end		
+
+      7'b1110011: begin // SYSTEM (ECALL, EBREAK)
+        ru_write     = 1'b0;    // NO escribir en registros
+        alu_op       = 4'bxxxx;
+        imm_src      = 3'b000;
+        alu_a_src    = 2'bxx;
+        alu_b_src    = 1'bx;
+        dm_write     = 1'b0;
+        dm_ctrl      = 3'bxxx;
+        br_op        = 5'b11000; // System call
+        ru_data_src  = 2'bxx;
+      end    
       
       default: begin
         ru_write     = 1'b0;

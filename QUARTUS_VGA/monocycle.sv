@@ -43,6 +43,8 @@ module monocycle (
   logic [31:0] pc_current;
   logic [31:0] pc_next;
   logic [31:0] pc_sum;
+  logic [31:0] pc_target;   // ← NUEVO: Dirección de salto
+  logic        pc_src;      
   logic [31:0] instruction;
   
   // Señales del decoder
@@ -211,6 +213,17 @@ module monocycle (
     .subsra(subsra),
     .result(aluResult)
   );
+
+  branch_unit branch_ctrl (
+    .rs1_data(rs1Data),
+    .rs2_data(rs2Data),
+    .br_op(br_op),
+    .alu_result(aluResult),
+    .pc_current(pc_current),
+    .immediate(immediate),
+    .pc_src(pc_src),
+    .pc_target(pc_target)
+  );
   
   
   // ========== EXPONER MEMORIA PARA VGA ==========
@@ -223,7 +236,7 @@ module monocycle (
 	  .write_enable(dm_write),
 	  .dm_ctrl(dm_ctrl),
 	  .read_data(memReadData),
-	  .memory_out(memory_display)  // ← AGREGAR ESTA LÍNEA
+	  .memory_out(memory_display)  
 	);
   
   // ========== DISPLAY VGA ==========
