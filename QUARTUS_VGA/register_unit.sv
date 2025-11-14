@@ -25,6 +25,7 @@ module registerUnit (
       for (int i = 0; i < 32; i++) begin
         registers[i] <= 32'd0;
       end
+      registers[2] <= 32'd24; // x2 (sp) inicializado en 24
     end else begin
       // Operación normal
       if (writeEnable && rd != 5'd0)
