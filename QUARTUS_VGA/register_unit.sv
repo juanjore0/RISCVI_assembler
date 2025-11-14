@@ -34,3 +34,4 @@ always_ff @(posedge clk) begin
     registers[0] <= 32'd0; // x0 siempre en 0
   end
 end
+endmodule
