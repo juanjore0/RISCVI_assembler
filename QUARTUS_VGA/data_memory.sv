@@ -6,12 +6,12 @@ module data_memory (
   input  logic [2:0]  dm_ctrl,      // Control de tamaño y signo
   
   output logic [31:0] read_data,    // Datos leídos
-  output logic [31:0] memory_out [0:63] // Salida para debug
+  output logic [31:0] memory_out [0:31] // Salida para debug
 );
 
-  // Memoria de datos - 64 palabras (256 bytes)
-  logic [31:0] memory [0:63];
-
+  // Memoria de datos - 32 palabras (128 bytes)
+  logic [31:0] memory [0:31];
+  
   // Exponer todas las posiciones para debug
   assign memory_out = memory;
 
@@ -109,7 +109,7 @@ module data_memory (
   // Inicialización con datos de prueba
   initial begin
     // IMPORTANTE: Inicializar TODO el array primero
-    for (int i = 0; i < 64; i++) begin
+    for (int i = 0; i < 32; i++) begin
       memory[i] = 32'h00000000;
     end
     
