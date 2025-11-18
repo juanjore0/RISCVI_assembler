@@ -28,7 +28,7 @@ module risc_debug_display(
     input  logic [31:0] immediate,
     
     // Memoria 
-    input  logic [31:0] memory [0:63],
+    input  logic [31:0] memory [0:31],
 
 
     output logic [7:0]  vga_red,
@@ -76,7 +76,7 @@ module risc_debug_display(
     logic [31:0] pc_sync1, instruction_sync1;
     logic [31:0] alu_a_sync1, alu_b_sync1, alu_r_sync1;
     logic [31:0] imm_sync1;
-    logic [31:0] mem_sync1 [0:63];
+    logic [31:0] mem_sync1 [0:31];
     
     always_ff @(posedge clock) begin
         regs_sync1 <= regs_demo;
@@ -93,7 +93,7 @@ module risc_debug_display(
     logic [31:0] pc_vga, instruction_vga;
     logic [31:0] alu_a_vga, alu_b_vga, alu_r_vga;
     logic [31:0] imm_vga;
-    logic [31:0] mem_vga [0:63];
+    logic [31:0] mem_vga [0:31];
     
     always_ff @(posedge vgaclk) begin
         regs_vga <= regs_sync1;
@@ -202,7 +202,7 @@ module risc_debug_display(
     localparam MEM_X = 10;
     localparam MEM_Y = 310;
     localparam MEM_W = 60 * CHAR_W;
-    localparam MEM_H = 18 * CHAR_H;
+    localparam MEM_H = 10 * CHAR_H;
     
     logic in_mem_window;
     logic [10:0] mem_rel_x;
@@ -231,13 +231,13 @@ module risc_debug_display(
             mem_display_idx = mem_row_offset;
         end else if (mem_char_col < 30) begin
             mem_column = 1;
-            mem_display_idx = 16 + mem_row_offset;
+            mem_display_idx = 8 + mem_row_offset;   // Cambio: 8 en vez de 16
         end else if (mem_char_col < 45) begin
             mem_column = 2;
-            mem_display_idx = 32 + mem_row_offset;
+            mem_display_idx = 16 + mem_row_offset;  // Cambio: 16 en vez de 32
         end else if (mem_char_col < 60) begin
             mem_column = 3;
-            mem_display_idx = 48 + mem_row_offset;
+            mem_display_idx = 24 + mem_row_offset;  // Cambio: 24 en vez de 48
         end else begin
             mem_column = 0;
             mem_display_idx = 0;
@@ -453,13 +453,13 @@ module risc_debug_display(
                 case (mem_char_col)
                     6'd0: ascii_code = "M"; 6'd1: ascii_code = "E"; 6'd2: ascii_code = "M";
                     6'd3: ascii_code = "O"; 6'd4: ascii_code = "R"; 6'd5: ascii_code = "Y";
-                    6'd7: ascii_code = "("; 6'd8: ascii_code = "6"; 6'd9: ascii_code = "4";
+                    6'd7: ascii_code = "("; 6'd8: ascii_code = "3"; 6'd9: ascii_code = "2";
                     6'd10: ascii_code = ")";
                     default: ascii_code = 8'd32;
                 endcase
             end else if (mem_char_row == 1) begin
                 ascii_code = (mem_char_col < 60) ? 8'd45 : 8'd32;
-            end else if (mem_char_row >= 2 && mem_char_row < 18 && mem_char_col < 60) begin
+            end else if (mem_char_row >= 2 && mem_char_row < 10 && mem_char_col < 60) begin
                 case (mem_col_pos)
                     4'd0: ascii_code = "[";
                     4'd1: ascii_code = 8'd48 + (mem_display_idx / 10);
