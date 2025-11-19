@@ -189,6 +189,8 @@ module monocycle (
   immediate_generator imm_gen (
     .instruction(instruction),
     .imm_src(imm_src),
+	 .opcode(opcode),
+	 .funct3(fuct3),
     .immediate(immediate)
   );
   

@@ -1,16 +1,30 @@
 module immediate_generator (
   input  logic [31:0] instruction,
   input  logic [2:0]  imm_src,
+  input  logic [6:0]  opcode,      // ← AÑADIDO para detectar shifts
+  input  logic [2:0]  funct3,      // ← AÑADIDO para detectar shifts
   
   output logic [31:0] immediate
 );
 
   always_comb begin
     case (imm_src)
-      3'b000: // Tipo I (ADDI, SLTI, XORI, ORI, ANDI, SLLI, SRLI, SRAI)
-        immediate = {{20{instruction[31]}}, instruction[31:20]};
+      3'b000: begin // Tipo I
+        // Detectar si es una instrucción de shift inmediato
+        // Opcode 0010011 = operaciones inmediatas
+        // funct3 = 001 (SLLI) o 101 (SRLI/SRAI)
+        if (opcode == 7'b0010011 && (funct3 == 3'b001 || funct3 == 3'b101)) begin
+          // Para shifts: solo usar bits [24:20] como shamt (shift amount)
+          // NO extender signo, solo 5 bits válidos (0-31)
+          immediate = {27'b0, instruction[24:20]};
+        end else begin
+          // Para otras instrucciones tipo I: extensión de signo normal
+          // (ADDI, SLTI, XORI, ORI, ANDI, loads, JALR)
+          immediate = {{20{instruction[31]}}, instruction[31:20]};
+        end
+      end
 		      
-		  3'b001: // Tipo S (STORE) 
+      3'b001: // Tipo S (STORE) 
         // imm[11:5] = instruction[31:25]
         // imm[4:0]  = instruction[11:7]
         immediate = {{20{instruction[31]}}, instruction[31:25], instruction[11:7]};
