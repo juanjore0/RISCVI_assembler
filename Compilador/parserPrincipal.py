@@ -103,11 +103,25 @@ class RISCVParser(Parser):
         ins_info = ins_type_I[p.INSTRUCTION_TYPE_I]
         rd = Registros(p.REGISTER0)
         rs1 = Registros(p.REGISTER1)
-
-        validate_imm(int(p.NUMBER), 12)
         
-        imm = num_binary(int(p.NUMBER), 12)
-        binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        # Detectar si es una instrucción de shift
+        if p.INSTRUCTION_TYPE_I in ['slli', 'srli', 'srai']:
+            # Para shifts: solo 5 bits de inmediato (shamt)
+            if not (0 <= int(p.NUMBER) <= 31):
+                raise ValueError(f"Shift amount {p.NUMBER} out of range (must be 0-31)")
+            
+            shamt = num_binary(int(p.NUMBER), 5)  # Solo 5 bits
+            
+            # Obtener funct7 del diccionario
+            funct7 = ins_info.get('funct7', '0000000')  # Por defecto 0000000
+            
+            binary_instruction = f"{funct7}{shamt}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        else:
+            # Para otras instrucciones tipo I normales (ADDI, SLTI, etc.)
+            validate_imm(int(p.NUMBER), 12)
+            imm = num_binary(int(p.NUMBER), 12)
+            binary_instruction = f"{imm}{rs1}{ins_info['funct3']}{rd}{ins_info['opcode']}"
+        
         count_line += 4
         return ('instruction_i', binary_instruction)
     
@@ -799,7 +813,6 @@ class RISCVParser(Parser):
 
     @_('JAL_PSEUDO LABEL')
     def line(self, p):
-        # jal offset -> jal x1, offset
         global count_line
         ins_info = ins_type_J['jal']
         rd = "00001"  # x1
@@ -809,17 +822,21 @@ class RISCVParser(Parser):
             raise ValueError(f"Jump offset {offset} out of range for 21 bits")
         
         imm = num_binary(offset, 21)
-        #traduccion directa del offset
-        #signo, pos 31
+        print(f"  Immediate (21 bits): {imm}")
+        
         imm20 = imm[0]
-
-        imm10_1 = imm[10:20]
-        imm11 = imm[9]
         imm19_12 = imm[1:9]
+        imm11 = imm[9]
+        imm10_1 = imm[10:20]
+
         
         binary_instruction = f"{imm20}{imm10_1}{imm11}{imm19_12}{rd}{ins_info['opcode']}"
+        print(f"  Binary: {binary_instruction}")
+        print(f"  Hex: {hex(int(binary_instruction, 2))}")
+        
         count_line += 4
         return ('instruction_j', binary_instruction)
+
 
     @_('JR REGISTER')
     def line(self, p):

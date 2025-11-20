@@ -16,9 +16,11 @@ ins_type_I = {
     'xori': {'funct3': '100','opcode': '0010011'},
     'ori': {'funct3': '110','opcode': '0010011'},
     'andi': {'funct3': '111','opcode': '0010011'},
-    'slli': {'funct3': '001','opcode': '0010011'},
-    'srli': {'funct3': '101','opcode': '0010011'},
-    'srai': {'funct3': '101','opcode': '0010011'},
+
+    'slli':  {'opcode': '0010011', 'funct3': '001', 'funct7': '0000000'},
+    'srli':  {'opcode': '0010011', 'funct3': '101', 'funct7': '0000000'},
+    'srai':  {'opcode': '0010011', 'funct3': '101', 'funct7': '0100000'},
+    
     'slti': {'funct3': '010','opcode': '0010011'},
     'sltiu': {'funct3': '011','opcode': '0010011'},
     'lb': {'funct3': '000','opcode': '0000011'},
