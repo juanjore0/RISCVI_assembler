@@ -259,6 +259,7 @@ module monocycle (
     .alu_operand_a(aluOperandA),
     .alu_operand_b(aluOperandB),
     .alu_result(aluResult),
+	 .alu_op(alu_op),
     
     // Inmediato
     .immediate(immediate),

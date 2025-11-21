@@ -23,6 +23,7 @@ module risc_debug_display(
     input  logic [31:0] alu_operand_a,
     input  logic [31:0] alu_operand_b,
     input  logic [31:0] alu_result,
+	 input  logic [3:0]  alu_op, 
     
     // Inmediato
     input  logic [31:0] immediate,
@@ -75,6 +76,7 @@ module risc_debug_display(
     logic [31:0] regs_sync1 [0:31];
     logic [31:0] pc_sync1, instruction_sync1;
     logic [31:0] alu_a_sync1, alu_b_sync1, alu_r_sync1;
+	 logic [3:0] alu_op_sync1;
     logic [31:0] imm_sync1;
     logic [31:0] mem_sync1 [0:31];
     
@@ -85,6 +87,7 @@ module risc_debug_display(
         alu_a_sync1 <= alu_operand_a;
         alu_b_sync1 <= alu_operand_b;
         alu_r_sync1 <= alu_result;
+		  alu_op_sync1 <= alu_op;
         imm_sync1 <= immediate;
         mem_sync1 <= memory;
     end
@@ -92,6 +95,7 @@ module risc_debug_display(
     logic [31:0] regs_vga [0:31];
     logic [31:0] pc_vga, instruction_vga;
     logic [31:0] alu_a_vga, alu_b_vga, alu_r_vga;
+	 logic [3:0]  alu_op_vga;
     logic [31:0] imm_vga;
     logic [31:0] mem_vga [0:31];
     
@@ -102,6 +106,7 @@ module risc_debug_display(
         alu_a_vga <= alu_a_sync1;
         alu_b_vga <= alu_b_sync1;
         alu_r_vga <= alu_r_sync1;
+		  alu_op_vga <= alu_op_sync1; 
         imm_vga <= imm_sync1;
         mem_vga <= mem_sync1;
     end
@@ -182,7 +187,7 @@ module risc_debug_display(
     localparam ALU_X = 360;
     localparam ALU_Y = 120;
     localparam ALU_W = 25 * CHAR_W;
-    localparam ALU_H = 8 * CHAR_H;
+    localparam ALU_H = 10 * CHAR_H;
     
     logic in_alu_window;
     logic [10:0] alu_rel_x;
@@ -287,6 +292,82 @@ module risc_debug_display(
         endcase
     endfunction
     
+	 
+	// ============================================================
+	// Función para decodificar ALU_OP a texto
+	// ============================================================
+	 function automatic [7:0] alu_op_char(input integer pos, input [3:0] op);
+		  case (op)
+			   4'b0000: begin  // ADD
+					 case (pos)
+						  0: return "A"; 1: return "D"; 2: return "D";
+						  default: return " ";
+					 endcase
+			   end
+			   4'b1000: begin  // SUB
+					 case (pos)
+						  0: return "S"; 1: return "U"; 2: return "B";
+						  default: return " ";
+					 endcase
+			   end
+			   4'b0001: begin  // SLL
+					 case (pos)
+						  0: return "S"; 1: return "L"; 2: return "L";
+						  default: return " ";
+					 endcase
+			   end
+			   4'b0010: begin  // SLT
+					 case (pos)
+						  0: return "S"; 1: return "L"; 2: return "T";
+						  default: return " ";
+					 endcase
+			   end
+			   4'b0011: begin  // SLTU
+					 case (pos)
+						  0: return "S"; 1: return "L"; 2: return "T"; 3: return "U";
+						  default: return " ";
+					 endcase
+			   end
+			   4'b0100: begin  // XOR
+					 case (pos)
+						  0: return "X"; 1: return "O"; 2: return "R";
+						  default: return " ";
+					 endcase
+			   end
+			   4'b0101: begin  // SRL
+					 case (pos)
+						  0: return "S"; 1: return "R"; 2: return "L";
+						  default: return " ";
+					 endcase
+			   end
+			   4'b1101: begin  // SRA
+				  	 case (pos)
+						  0: return "S"; 1: return "R"; 2: return "A";
+						  default: return " ";
+					 endcase
+			   end
+			   4'b0110: begin  // OR
+					 case (pos)
+						  0: return "O"; 1: return "R";
+						  default: return " ";
+					 endcase
+			   end
+			   4'b0111: begin  // AND
+					 case (pos)
+						  0: return "A"; 1: return "N"; 2: return "D";
+						  default: return " ";
+					 endcase
+			   end
+				default: begin
+					 case (pos)
+						  0: return "?"; 1: return "?"; 2: return "?";
+						  default: return " ";
+					 endcase
+			   end
+		  endcase
+	 endfunction
+		 
+	 
     // ============================================================
     // Generación de texto
     // ============================================================
@@ -388,65 +469,81 @@ module risc_debug_display(
                 default: ascii_code = 8'd32;
             endcase
         end
-        
-        else if (in_alu_window) begin
-            case (alu_char_row)
-                5'd0: begin
-                    case (alu_char_col)
-                        6'd0: ascii_code = "A"; 6'd1: ascii_code = "L"; 6'd2: ascii_code = "U";
-                        default: ascii_code = 8'd32;
-                    endcase
-                end
-                5'd1: if (alu_char_col < 20) ascii_code = 8'd45;
-                5'd2: begin
-                    case (alu_char_col)
-                        6'd0: ascii_code = "A"; 6'd1: ascii_code = ":";
-                        6'd3: ascii_code = "0"; 6'd4: ascii_code = "x";
-                        6'd5:  ascii_code = to_hex(alu_a_vga[31:28]);
-                        6'd6:  ascii_code = to_hex(alu_a_vga[27:24]);
-                        6'd7:  ascii_code = to_hex(alu_a_vga[23:20]);
-                        6'd8:  ascii_code = to_hex(alu_a_vga[19:16]);
-                        6'd9:  ascii_code = to_hex(alu_a_vga[15:12]);
-                        6'd10: ascii_code = to_hex(alu_a_vga[11:8]);
-                        6'd11: ascii_code = to_hex(alu_a_vga[7:4]);
-                        6'd12: ascii_code = to_hex(alu_a_vga[3:0]);
-                        default: ascii_code = 8'd32;
-                    endcase
-                end
-                5'd3: begin
-                    case (alu_char_col)
-                        6'd0: ascii_code = "B"; 6'd1: ascii_code = ":";
-                        6'd3: ascii_code = "0"; 6'd4: ascii_code = "x";
-                        6'd5:  ascii_code = to_hex(alu_b_vga[31:28]);
-                        6'd6:  ascii_code = to_hex(alu_b_vga[27:24]);
-                        6'd7:  ascii_code = to_hex(alu_b_vga[23:20]);
-                        6'd8:  ascii_code = to_hex(alu_b_vga[19:16]);
-                        6'd9:  ascii_code = to_hex(alu_b_vga[15:12]);
-                        6'd10: ascii_code = to_hex(alu_b_vga[11:8]);
-                        6'd11: ascii_code = to_hex(alu_b_vga[7:4]);
-                        6'd12: ascii_code = to_hex(alu_b_vga[3:0]);
-                        default: ascii_code = 8'd32;
-                    endcase
-                end
-                5'd4: if (alu_char_col < 13) ascii_code = 8'd45;
-                5'd5: begin
-                    case (alu_char_col)
-                        6'd0: ascii_code = "R"; 6'd1: ascii_code = ":";
-                        6'd3: ascii_code = "0"; 6'd4: ascii_code = "x";
-                        6'd5:  ascii_code = to_hex(alu_r_vga[31:28]);
-                        6'd6:  ascii_code = to_hex(alu_r_vga[27:24]);
-                        6'd7:  ascii_code = to_hex(alu_r_vga[23:20]);
-                        6'd8:  ascii_code = to_hex(alu_r_vga[19:16]);
-                        6'd9:  ascii_code = to_hex(alu_r_vga[15:12]);
-                        6'd10: ascii_code = to_hex(alu_r_vga[11:8]);
-                        6'd11: ascii_code = to_hex(alu_r_vga[7:4]);
-                        6'd12: ascii_code = to_hex(alu_r_vga[3:0]);
-                        default: ascii_code = 8'd32;
-                    endcase
-                end
-                default: ascii_code = 8'd32;
-            endcase
-        end
+						  
+		  else if (in_alu_window) begin
+			   case (alu_char_row)
+				    5'd0: begin
+					  	  case (alu_char_col)
+							   6'd0: ascii_code = "A"; 6'd1: ascii_code = "L"; 6'd2: ascii_code = "U";
+							   default: ascii_code = 8'd32;
+						  endcase
+				    end
+				    5'd1: if (alu_char_col < 20) ascii_code = 8'd45;
+				    5'd2: begin  // ⬇️ NUEVO: Línea de operación
+					  	  case (alu_char_col)
+							   6'd0: ascii_code = "O"; 6'd1: ascii_code = "P"; 6'd2: ascii_code = ":";
+							   6'd4: ascii_code = alu_op_char(0, alu_op_vga);
+							   6'd5: ascii_code = alu_op_char(1, alu_op_vga);
+							   6'd6: ascii_code = alu_op_char(2, alu_op_vga);
+							   6'd7: ascii_code = alu_op_char(3, alu_op_vga);
+							   6'd9: ascii_code = "(";
+							   6'd10: ascii_code = to_hex(alu_op_vga);
+							   6'd11: ascii_code = ")";
+							   default: ascii_code = 8'd32;
+						  endcase
+				    end
+				    5'd3: if (alu_char_col < 13) ascii_code = 8'd45;  // ⬅️ Nueva línea separadora
+				    5'd4: begin  // ⬅️ Mover A: una línea abajo
+				  		  case (alu_char_col)
+							   6'd0: ascii_code = "A"; 6'd1: ascii_code = ":";
+							   6'd3: ascii_code = "0"; 6'd4: ascii_code = "x";
+							   6'd5:  ascii_code = to_hex(alu_a_vga[31:28]);
+							   6'd6:  ascii_code = to_hex(alu_a_vga[27:24]);
+							   6'd7:  ascii_code = to_hex(alu_a_vga[23:20]);
+							   6'd8:  ascii_code = to_hex(alu_a_vga[19:16]);
+							   6'd9:  ascii_code = to_hex(alu_a_vga[15:12]);
+							   6'd10: ascii_code = to_hex(alu_a_vga[11:8]);
+							   6'd11: ascii_code = to_hex(alu_a_vga[7:4]);
+							   6'd12: ascii_code = to_hex(alu_a_vga[3:0]);
+							   default: ascii_code = 8'd32;
+						  endcase
+				    end
+				    5'd5: begin  // ⬅️ Mover B: una línea abajo
+						  case (alu_char_col)
+							   6'd0: ascii_code = "B"; 6'd1: ascii_code = ":";
+							   6'd3: ascii_code = "0"; 6'd4: ascii_code = "x";
+							   6'd5:  ascii_code = to_hex(alu_b_vga[31:28]);
+							   6'd6:  ascii_code = to_hex(alu_b_vga[27:24]);
+							   6'd7:  ascii_code = to_hex(alu_b_vga[23:20]);
+							   6'd8:  ascii_code = to_hex(alu_b_vga[19:16]);
+							   6'd9:  ascii_code = to_hex(alu_b_vga[15:12]);
+							   6'd10: ascii_code = to_hex(alu_b_vga[11:8]);
+							   6'd11: ascii_code = to_hex(alu_b_vga[7:4]);
+							   6'd12: ascii_code = to_hex(alu_b_vga[3:0]);
+							   default: ascii_code = 8'd32;
+						  endcase
+				    end
+				    5'd6: if (alu_char_col < 13) ascii_code = 8'd45;  // ⬅️ Mover línea separadora
+				    5'd7: begin  // ⬅️ Mover R: una línea abajo
+						  case (alu_char_col)
+							   6'd0: ascii_code = "R"; 6'd1: ascii_code = ":";
+							   6'd3: ascii_code = "0"; 6'd4: ascii_code = "x";
+							   6'd5:  ascii_code = to_hex(alu_r_vga[31:28]);
+							   6'd6:  ascii_code = to_hex(alu_r_vga[27:24]);
+							   6'd7:  ascii_code = to_hex(alu_r_vga[23:20]);
+							   6'd8:  ascii_code = to_hex(alu_r_vga[19:16]);
+							   6'd9:  ascii_code = to_hex(alu_r_vga[15:12]);
+							   6'd10: ascii_code = to_hex(alu_r_vga[11:8]);
+							   6'd11: ascii_code = to_hex(alu_r_vga[7:4]);
+							   6'd12: ascii_code = to_hex(alu_r_vga[3:0]);
+							   default: ascii_code = 8'd32;
+						  endcase
+				    end
+				    default: ascii_code = 8'd32;
+			   endcase
+		  end
+
+
         
         else if (in_mem_window) begin
             if (mem_char_row == 0) begin
