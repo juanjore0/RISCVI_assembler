@@ -1,0 +1,506 @@
+// ============================================================
+// pipeline_riscv.sv - Procesador RISC-V con Pipeline FUNCIONAL
+// IF -> ID -> EX -> MEM -> WB
+// Con Forwarding, Hazard Detection y Branch Handling
+// ============================================================
+
+module pipeline (
+  input  logic        CLOCK_50,
+  input  logic [3:0]  KEY,
+  input  logic [9:0]  SW,
+  
+  output logic [6:0]  HEX0, HEX1, HEX2, HEX3,
+  output logic [9:0]  LEDR,
+  
+  output logic [7:0]  VGA_R, VGA_G, VGA_B,
+  output logic        VGA_HS, VGA_VS, VGA_CLK
+);
+
+  logic clk, reset;
+  assign clk = CLOCK_50;  // Usar reloj de 50MHz
+  assign reset = ~KEY[1];
+  
+  // ============================================================
+  // REGISTROS DE PIPELINE
+  // ============================================================
+  
+  // IF/ID
+  logic [31:0] IF_ID_pc, IF_ID_pc_plus4;
+  logic [31:0] IF_ID_instruction;
+  logic        IF_ID_valid;
+  
+  // ID/EX
+  logic [31:0] ID_EX_pc, ID_EX_pc_plus4;
+  logic [31:0] ID_EX_rs1_data, ID_EX_rs2_data;
+  logic [31:0] ID_EX_immediate;
+  logic [4:0]  ID_EX_rd, ID_EX_rs1, ID_EX_rs2;
+  logic [2:0]  ID_EX_funct3;
+  
+  // Control signals ID/EX
+  logic        ID_EX_ru_write;
+  logic [3:0]  ID_EX_alu_op;
+  logic [1:0]  ID_EX_alu_a_src;
+  logic        ID_EX_alu_b_src;
+  logic        ID_EX_dm_write;
+  logic [2:0]  ID_EX_dm_ctrl;
+  logic [4:0]  ID_EX_br_op;
+  logic [1:0]  ID_EX_ru_data_src;
+  logic        ID_EX_valid;
+  
+  // EX/MEM
+  logic [31:0] EX_MEM_pc_plus4;
+  logic [31:0] EX_MEM_alu_result;
+  logic [31:0] EX_MEM_rs2_data;
+  logic [31:0] EX_MEM_immediate;
+  logic [4:0]  EX_MEM_rd;
+  
+  // Control signals EX/MEM
+  logic        EX_MEM_ru_write;
+  logic        EX_MEM_dm_write;
+  logic [2:0]  EX_MEM_dm_ctrl;
+  logic [1:0]  EX_MEM_ru_data_src;
+  logic        EX_MEM_valid;
+  
+  // MEM/WB
+  logic [31:0] MEM_WB_alu_result;
+  logic [31:0] MEM_WB_mem_data;
+  logic [31:0] MEM_WB_pc_plus4;
+  logic [31:0] MEM_WB_immediate;
+  logic [4:0]  MEM_WB_rd;
+  
+  // Control signals MEM/WB
+  logic        MEM_WB_ru_write;
+  logic [1:0]  MEM_WB_ru_data_src;
+  logic        MEM_WB_valid;
+  
+  // ============================================================
+  // SEÑALES DE CONTROL DE HAZARDS
+  // ============================================================
+  logic stall_pipeline;
+  logic flush_IF_ID;
+  logic flush_ID_EX;
+  logic pc_write_enable;
+  
+  // ============================================================
+  // STAGE 1: IF (Instruction Fetch)
+  // ============================================================
+  logic [31:0] pc_current, pc_next;
+  logic [31:0] pc_plus4;
+  logic [31:0] instruction;
+  logic [31:0] branch_target;
+  logic        take_branch;
+  
+  assign pc_plus4 = pc_current + 32'd4;
+  
+  // PC Selection (branch tiene prioridad)
+  assign pc_next = take_branch ? branch_target : pc_plus4;
+  
+  // Program Counter
+  always_ff @(posedge clk) begin
+    if (reset)
+      pc_current <= 32'h00000000;
+    else if (pc_write_enable)
+      pc_current <= pc_next;
+  end
+  
+  // Instruction Memory
+  instruction_memory imem (
+    .address(pc_current),
+    .instruction(instruction)
+  );
+  
+  // IF/ID Pipeline Register
+  always_ff @(posedge clk) begin
+    if (reset || flush_IF_ID) begin
+      IF_ID_pc <= 32'd0;
+      IF_ID_pc_plus4 <= 32'd0;
+      IF_ID_instruction <= 32'h00000013;  // NOP
+      IF_ID_valid <= 1'b0;
+    end else if (!stall_pipeline) begin
+      IF_ID_pc <= pc_current;
+      IF_ID_pc_plus4 <= pc_plus4;
+      IF_ID_instruction <= instruction;
+      IF_ID_valid <= 1'b1;
+    end
+  end
+  
+  // ============================================================
+  // STAGE 2: ID (Instruction Decode)
+  // ============================================================
+  logic [6:0]  opcode;
+  logic [4:0]  rd, rs1, rs2;
+  logic [2:0]  funct3;
+  logic [6:0]  funct7;
+  logic [31:0] rs1_data_raw, rs2_data_raw;
+  logic [31:0] immediate;
+  
+  // Control signals
+  logic        ru_write;
+  logic [3:0]  alu_op;
+  logic [2:0]  imm_src;
+  logic [1:0]  alu_a_src;
+  logic        alu_b_src;
+  logic        dm_write;
+  logic [2:0]  dm_ctrl;
+  logic [4:0]  br_op;
+  logic [1:0]  ru_data_src;
+  
+  // Instruction Decoder
+  instruction_decoder decoder (
+    .instruction(IF_ID_instruction),
+    .opcode(opcode),
+    .rd(rd),
+    .funct3(funct3),
+    .rs1(rs1),
+    .rs2(rs2),
+    .funct7(funct7)
+  );
+  
+  // Control Unit
+  control_unit ctrl (
+    .opcode(opcode),
+    .funct3(funct3),
+    .funct7(funct7),
+    .ru_write(ru_write),
+    .alu_op(alu_op),
+    .imm_src(imm_src),
+    .alu_a_src(alu_a_src),
+    .alu_b_src(alu_b_src),
+    .dm_write(dm_write),
+    .dm_ctrl(dm_ctrl),
+    .br_op(br_op),
+    .ru_data_src(ru_data_src)
+  );
+  
+  // Immediate Generator
+  immediate_generator imm_gen (
+    .instruction(IF_ID_instruction),
+    .imm_src(imm_src),
+    .opcode(opcode),
+	  .funct3(funct3),
+    .immediate(immediate)
+  );
+  
+  // Register File
+  logic [31:0] wb_data;
+  logic [31:0] registers [0:31];
+  
+  registerUnit reg_file (
+    .rs1(rs1),
+    .rs2(rs2),
+    .rd(MEM_WB_rd),
+    .clk(clk),
+    .reset(reset),
+    .writeEnable(MEM_WB_ru_write && MEM_WB_valid),
+    .data(wb_data),
+    .rs1Data(rs1_data_raw),
+    .rs2Data(rs2_data_raw),
+    .registers_out(registers)
+  );
+  
+  // ============================================================
+  // HAZARD DETECTION UNIT
+  // ============================================================
+  logic load_use_hazard;
+  logic branch_hazard;
+  
+  // Load-Use Hazard: instrucción actual necesita dato de load anterior
+  assign load_use_hazard = (ID_EX_ru_data_src == 2'b01) &&  // Load en EX
+                           ID_EX_valid &&
+                           (((ID_EX_rd == rs1) && (rs1 != 5'd0)) ||
+                            ((ID_EX_rd == rs2) && (rs2 != 5'd0)));
+  
+  // Branch Hazard: hay un branch/jump en EX stage
+  assign branch_hazard = (ID_EX_br_op != 5'b00000) && ID_EX_valid;
+  
+  assign stall_pipeline = load_use_hazard;
+  assign pc_write_enable = !stall_pipeline;
+  assign flush_IF_ID = take_branch;
+  assign flush_ID_EX = stall_pipeline || take_branch;
+  
+  // ============================================================
+  // FORWARDING UNIT
+  // ============================================================
+  logic [1:0] forward_a_sel, forward_b_sel;
+  
+  always_comb begin
+    // Forward A (rs1)
+    if (EX_MEM_ru_write && EX_MEM_valid && (EX_MEM_rd != 5'd0) && (EX_MEM_rd == rs1))
+      forward_a_sel = 2'b10;  // Forward from EX/MEM
+    else if (MEM_WB_ru_write && MEM_WB_valid && (MEM_WB_rd != 5'd0) && (MEM_WB_rd == rs1))
+      forward_a_sel = 2'b01;  // Forward from MEM/WB
+    else
+      forward_a_sel = 2'b00;  // No forward
+    
+    // Forward B (rs2)
+    if (EX_MEM_ru_write && EX_MEM_valid && (EX_MEM_rd != 5'd0) && (EX_MEM_rd == rs2))
+      forward_b_sel = 2'b10;
+    else if (MEM_WB_ru_write && MEM_WB_valid && (MEM_WB_rd != 5'd0) && (MEM_WB_rd == rs2))
+      forward_b_sel = 2'b01;
+    else
+      forward_b_sel = 2'b00;
+  end
+  
+  // Aplicar forwarding en ID stage (para branches)
+  logic [31:0] rs1_data, rs2_data;
+  logic [31:0] ex_forward_data, mem_forward_data;
+  
+  // Datos para forward desde EX/MEM
+  always_comb begin
+    case (EX_MEM_ru_data_src)
+      2'b00: ex_forward_data = EX_MEM_alu_result;
+      2'b10: ex_forward_data = EX_MEM_pc_plus4;
+      2'b11: ex_forward_data = EX_MEM_immediate;
+      default: ex_forward_data = EX_MEM_alu_result;
+    endcase
+  end
+  
+  assign mem_forward_data = wb_data;
+  
+  // Multiplexores de forwarding
+  always_comb begin
+    case (forward_a_sel)
+      2'b00: rs1_data = rs1_data_raw;
+      2'b01: rs1_data = mem_forward_data;
+      2'b10: rs1_data = ex_forward_data;
+      default: rs1_data = rs1_data_raw;
+    endcase
+    
+    case (forward_b_sel)
+      2'b00: rs2_data = rs2_data_raw;
+      2'b01: rs2_data = mem_forward_data;
+      2'b10: rs2_data = ex_forward_data;
+      default: rs2_data = rs2_data_raw;
+    endcase
+  end
+  
+  // ID/EX Pipeline Register
+  always_ff @(posedge clk) begin
+    if (reset || flush_ID_EX) begin
+      ID_EX_pc <= 32'd0;
+      ID_EX_pc_plus4 <= 32'd0;
+      ID_EX_rs1_data <= 32'd0;
+      ID_EX_rs2_data <= 32'd0;
+      ID_EX_immediate <= 32'd0;
+      ID_EX_rd <= 5'd0;
+      ID_EX_rs1 <= 5'd0;
+      ID_EX_rs2 <= 5'd0;
+      ID_EX_funct3 <= 3'd0;
+      ID_EX_ru_write <= 1'b0;
+      ID_EX_alu_op <= 4'd0;
+      ID_EX_alu_a_src <= 2'd0;
+      ID_EX_alu_b_src <= 1'b0;
+      ID_EX_dm_write <= 1'b0;
+      ID_EX_dm_ctrl <= 3'd0;
+      ID_EX_br_op <= 5'd0;
+      ID_EX_ru_data_src <= 2'd0;
+      ID_EX_valid <= 1'b0;
+    end else if (!stall_pipeline) begin
+      ID_EX_pc <= IF_ID_pc;
+      ID_EX_pc_plus4 <= IF_ID_pc_plus4;
+      ID_EX_rs1_data <= rs1_data;
+      ID_EX_rs2_data <= rs2_data;
+      ID_EX_immediate <= immediate;
+      ID_EX_rd <= rd;
+      ID_EX_rs1 <= rs1;
+      ID_EX_rs2 <= rs2;
+      ID_EX_funct3 <= funct3;
+      ID_EX_ru_write <= ru_write && IF_ID_valid;
+      ID_EX_alu_op <= alu_op;
+      ID_EX_alu_a_src <= alu_a_src;
+      ID_EX_alu_b_src <= alu_b_src;
+      ID_EX_dm_write <= dm_write && IF_ID_valid;
+      ID_EX_dm_ctrl <= dm_ctrl;
+      ID_EX_br_op <= br_op;
+      ID_EX_ru_data_src <= ru_data_src;
+      ID_EX_valid <= IF_ID_valid;
+    end
+  end
+  
+  // ============================================================
+  // STAGE 3: EX (Execute)
+  // ============================================================
+  logic [31:0] alu_operand_a, alu_operand_b;
+  logic [31:0] alu_result;
+  
+  // ALU Operand Selection
+  always_comb begin
+    case (ID_EX_alu_a_src)
+      2'b00: alu_operand_a = ID_EX_rs1_data;
+      2'b01: alu_operand_a = ID_EX_pc;
+      default: alu_operand_a = ID_EX_rs1_data;
+    endcase
+    
+    alu_operand_b = ID_EX_alu_b_src ? ID_EX_immediate : ID_EX_rs2_data;
+  end
+  
+  // ALU
+  alu alu_unit (
+    .operand1(alu_operand_a),
+    .operand2(alu_operand_b),
+    .funct3(ID_EX_alu_op[2:0]),
+    .subsra(ID_EX_alu_op[3]),
+    .result(alu_result)
+  );
+  
+  // Branch Decision (en EX stage)
+  logic branch_taken;
+  logic is_branch, is_jal, is_jalr;
+  
+  assign is_branch = (ID_EX_br_op[4:3] == 2'b01);
+  assign is_jal    = (ID_EX_br_op == 5'b10000);
+  assign is_jalr   = (ID_EX_br_op == 5'b10001);
+  
+  // Comparaciones para branches
+  always_comb begin
+    branch_taken = 1'b0;
+    if (is_branch) begin
+      case (ID_EX_funct3)
+        3'b000: branch_taken = (ID_EX_rs1_data == ID_EX_rs2_data);           // BEQ
+        3'b001: branch_taken = (ID_EX_rs1_data != ID_EX_rs2_data);           // BNE
+        3'b100: branch_taken = ($signed(ID_EX_rs1_data) < $signed(ID_EX_rs2_data));  // BLT
+        3'b101: branch_taken = ($signed(ID_EX_rs1_data) >= $signed(ID_EX_rs2_data)); // BGE
+        3'b110: branch_taken = (ID_EX_rs1_data < ID_EX_rs2_data);            // BLTU
+        3'b111: branch_taken = (ID_EX_rs1_data >= ID_EX_rs2_data);           // BGEU
+        default: branch_taken = 1'b0;
+      endcase
+    end
+  end
+  
+  // Branch Target Calculation
+  always_comb begin
+    take_branch = 1'b0;
+    branch_target = pc_plus4;
+    
+    if (ID_EX_valid) begin
+      if (is_jalr) begin
+        take_branch = 1'b1;
+        branch_target = (alu_result & 32'hFFFFFFFE);  // JALR: (rs1 + imm) & ~1
+      end else if (is_jal) begin
+        take_branch = 1'b1;
+        branch_target = ID_EX_pc + ID_EX_immediate;   // JAL: PC + imm
+      end else if (is_branch && branch_taken) begin
+        take_branch = 1'b1;
+        branch_target = ID_EX_pc + ID_EX_immediate;   // Branch: PC + imm
+      end
+    end
+  end
+  
+  // EX/MEM Pipeline Register
+  always_ff @(posedge clk) begin
+    if (reset) begin
+      EX_MEM_pc_plus4 <= 32'd0;
+      EX_MEM_alu_result <= 32'd0;
+      EX_MEM_rs2_data <= 32'd0;
+      EX_MEM_immediate <= 32'd0;
+      EX_MEM_rd <= 5'd0;
+      EX_MEM_ru_write <= 1'b0;
+      EX_MEM_dm_write <= 1'b0;
+      EX_MEM_dm_ctrl <= 3'd0;
+      EX_MEM_ru_data_src <= 2'd0;
+      EX_MEM_valid <= 1'b0;
+    end else begin
+      EX_MEM_pc_plus4 <= ID_EX_pc_plus4;
+      EX_MEM_alu_result <= alu_result;
+      EX_MEM_rs2_data <= ID_EX_rs2_data;
+      EX_MEM_immediate <= ID_EX_immediate;
+      EX_MEM_rd <= ID_EX_rd;
+      EX_MEM_ru_write <= ID_EX_ru_write;
+      EX_MEM_dm_write <= ID_EX_dm_write;
+      EX_MEM_dm_ctrl <= ID_EX_dm_ctrl;
+      EX_MEM_ru_data_src <= ID_EX_ru_data_src;
+      EX_MEM_valid <= ID_EX_valid;
+    end
+  end
+  
+  // ============================================================
+  // STAGE 4: MEM (Memory Access)
+  // ============================================================
+  logic [31:0] mem_read_data;
+  logic [31:0] memory_display [0:31];
+  
+  data_memory dmem (
+    .clk(clk),
+    .address(EX_MEM_alu_result),
+    .write_data(EX_MEM_rs2_data),
+    .write_enable(EX_MEM_dm_write && EX_MEM_valid),
+    .dm_ctrl(EX_MEM_dm_ctrl),
+    .read_data(mem_read_data),
+    .memory_out(memory_display)
+  );
+  
+  // MEM/WB Pipeline Register
+  always_ff @(posedge clk) begin
+    if (reset) begin
+      MEM_WB_alu_result <= 32'd0;
+      MEM_WB_mem_data <= 32'd0;
+      MEM_WB_pc_plus4 <= 32'd0;
+      MEM_WB_immediate <= 32'd0;
+      MEM_WB_rd <= 5'd0;
+      MEM_WB_ru_write <= 1'b0;
+      MEM_WB_ru_data_src <= 2'd0;
+      MEM_WB_valid <= 1'b0;
+    end else begin
+      MEM_WB_alu_result <= EX_MEM_alu_result;
+      MEM_WB_mem_data <= mem_read_data;
+      MEM_WB_pc_plus4 <= EX_MEM_pc_plus4;
+      MEM_WB_immediate <= EX_MEM_immediate;
+      MEM_WB_rd <= EX_MEM_rd;
+      MEM_WB_ru_write <= EX_MEM_ru_write;
+      MEM_WB_ru_data_src <= EX_MEM_ru_data_src;
+      MEM_WB_valid <= EX_MEM_valid;
+    end
+  end
+  
+  // ============================================================
+  // STAGE 5: WB (Write Back)
+  // ============================================================
+  always_comb begin
+    case (MEM_WB_ru_data_src)
+      2'b00: wb_data = MEM_WB_alu_result;    // ALU result
+      2'b01: wb_data = MEM_WB_mem_data;      // Memory data
+      2'b10: wb_data = MEM_WB_pc_plus4;      // PC+4 (JAL/JALR)
+      2'b11: wb_data = MEM_WB_immediate;     // Immediate (LUI)
+      default: wb_data = MEM_WB_alu_result;
+    endcase
+  end
+  
+  // ============================================================
+  // DEBUG & OUTPUT
+  // ============================================================
+  logic [31:0] reg_changed_mask;
+  assign reg_changed_mask = 32'h0;  // Simplificado para pipeline
+  
+  risc_debug_display vga_debug (
+    .clock(CLOCK_50),
+    .sw0(reset),
+    .sw1(SW[2]), .sw2(SW[3]), .sw3(SW[4]), .sw4(SW[5]), .sw5(SW[6]),
+    .regs_demo(registers),
+    .changed_mask(reg_changed_mask),
+    .pc_value(pc_current),
+    .instruction(IF_ID_instruction),
+    .alu_operand_a(alu_operand_a),
+    .alu_operand_b(alu_operand_b),
+    .alu_result(alu_result),
+    .immediate(ID_EX_immediate),
+    .memory(memory_display),
+    .vga_red(VGA_R),
+    .vga_green(VGA_G),
+    .vga_blue(VGA_B),
+    .vga_hsync(VGA_HS),
+    .vga_vsync(VGA_VS),
+    .vga_clock(VGA_CLK)
+  );
+  
+  // LEDs para debug
+  assign LEDR[7:0] = pc_current[7:0];
+  assign LEDR[8] = stall_pipeline;
+  assign LEDR[9] = take_branch;
+  
+  // 7-Segment displays
+  hex_to_7seg d0 (.hex(IF_ID_instruction[3:0]),   .seg(HEX0));
+  hex_to_7seg d1 (.hex(IF_ID_instruction[7:4]),   .seg(HEX1));
+  hex_to_7seg d2 (.hex(IF_ID_instruction[11:8]),  .seg(HEX2));
+  hex_to_7seg d3 (.hex(IF_ID_instruction[15:12]), .seg(HEX3));
+
+endmodule
