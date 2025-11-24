@@ -22,8 +22,8 @@ module data_memory (
   
   // Dirección word-aligned - ASEGURAR QUE ESTÉ EN RANGO
   logic [5:0] word_addr;
-  assign word_addr = address[7:2];  // Bits [7:2] para 64 palabras
-  
+  assign word_addr = address[6:2];  // Bits [7:2] para 64 palabras
+  // 6:2 → 64 palabras (0-63), 32 palabras en memoria
   // Selección de byte y halfword
   logic [1:0] byte_offset;
   assign byte_offset = address[1:0];

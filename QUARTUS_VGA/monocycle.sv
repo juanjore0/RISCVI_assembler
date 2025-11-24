@@ -141,7 +141,7 @@ module monocycle (
   
   // ========== MÓDULOS DEL PROCESADOR ==========
   
-  assign pc_next = pc_sum;
+  assign pc_next = pc_src ? pc_target : pc_sum;
   
   pc program_counter (
     .next_address(pc_next),
@@ -189,8 +189,8 @@ module monocycle (
   immediate_generator imm_gen (
     .instruction(instruction),
     .imm_src(imm_src),
-	 .opcode(opcode),
-	 .funct3(fuct3),
+	  .opcode(opcode),
+	  .funct3(funct3),
     .immediate(immediate)
   );
   

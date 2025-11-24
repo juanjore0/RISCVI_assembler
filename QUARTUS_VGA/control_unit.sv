@@ -83,16 +83,16 @@ module control_unit (
       end
 
       7'b1100011: begin // Tipo B (Branch: BEQ, BNE, BLT, BGE, BLTU, BGEU)
-        ru_write     = 1'b0;    // NO escribir en registros
-        alu_op       = 4'b1000; // SUB (para comparaciones)
-        imm_src      = 3'b010;  // Inmediato tipo B
-        alu_a_src    = 2'b00;   // rs1
-        alu_b_src    = 1'b0;    // rs2 (comparar registros)
-        dm_write     = 1'b0;    // NO escribir en memoria
-        dm_ctrl      = 3'bxxx;
-        br_op        = {2'b01, funct3}; // Activar branch + tipo según funct3
-        ru_data_src  = 2'bxx;   // No importa
-      end
+		  ru_write     = 1'b0;    // NO escribir en registros
+		  alu_op       = 4'b0000; // ✓ ADD (para calcular PC + immediate)
+		  imm_src      = 3'b010;  // ✓ Inmediato tipo B
+		  alu_a_src    = 2'b01;   // ✓ CAMBIO: Usar PC como operando A
+		  alu_b_src    = 1'b1;    // ✓ CAMBIO: Usar immediate como operando B
+		  dm_write     = 1'b0;    // NO escribir en memoria
+		  dm_ctrl      = 3'b000;  // No importa
+		  br_op        = {2'b01, funct3}; // Activar branch + tipo según funct3
+		  ru_data_src  = 2'b00;   // No importa
+		end
           
       7'b1101111: begin // JAL (Jump And Link)
         ru_write     = 1'b1;    // SÍ escribir en rd (dirección de retorno)
@@ -101,7 +101,7 @@ module control_unit (
         alu_a_src    = 2'b01;   // PC como operando A
         alu_b_src    = 1'b1;    // Inmediato como operando B
         dm_write     = 1'b0;
-        dm_ctrl      = 3'bxxx;
+        dm_ctrl      = 3'b000;
         br_op        = 5'b10000; // Jump incondicional
         ru_data_src  = 2'b10;   // PC+4 (dirección de retorno)
       end
