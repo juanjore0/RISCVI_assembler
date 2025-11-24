@@ -39,6 +39,10 @@ Pipeline/incremental_db/
 Pipeline/simulation/
 Pipeline/output_files/
 
+Pipelinee/db/
+Pipelinee/incremental_db/
+Pipelinee/simulation/
+Pipelinee/output_files/
 
 # Ignorar locks de Quartus
 *.rdr.flock

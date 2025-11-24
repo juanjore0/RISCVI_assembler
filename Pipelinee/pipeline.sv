@@ -4,7 +4,7 @@
 // Con Forwarding, Hazard Detection y Branch Handling
 // ============================================================
 
-module pipeline_riscv (
+module pipeline (
   input  logic        CLOCK_50,
   input  logic [3:0]  KEY,
   input  logic [9:0]  SW,
