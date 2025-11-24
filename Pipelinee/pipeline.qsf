@@ -42,7 +42,7 @@ set_global_assignment -name DEVICE 5CSEMA5F31C6
 set_global_assignment -name TOP_LEVEL_ENTITY pipeline
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 24.1STD.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "14:30:09  NOVEMBER 24, 2025"
-set_global_assignment -name LAST_QUARTUS_VERSION "24.1std.0 Lite Edition"
+set_global_assignment -name LAST_QUARTUS_VERSION "23.1std.1 Lite Edition"
 set_global_assignment -name VERILOG_FILE vgaClock/synthesis/vgaClock.v
 set_global_assignment -name QIP_FILE vgaClock/synthesis/vgaClock.qip
 set_global_assignment -name SYSTEMVERILOG_FILE sumador.sv
