@@ -417,7 +417,7 @@ module pipeline_riscv (
   // STAGE 4: MEM (Memory Access)
   // ============================================================
   logic [31:0] mem_read_data;
-  logic [31:0] memory_display [0:63];
+  logic [31:0] memory_display [0:31];
   
   data_memory dmem (
     .clk(clk),
