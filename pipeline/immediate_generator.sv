@@ -33,12 +33,12 @@ module immediate_generator (
         // imm[12|10:5] = instruction[31:25]
         // imm[4:1|11]  = instruction[11:7]
         // bit 0 siempre es 0 (alineación)
-        immediate = {{19{instruction[31]}}, instruction[31], instruction[7], 
+        immediate = {{20{instruction[31]}}, instruction[7], 
                      instruction[30:25], instruction[11:8], 1'b0};
       
       3'b011: // Tipo J (JAL)
         // imm[20|10:1|11|19:12] de instruction[31:12]
-        immediate = {{11{instruction[31]}}, instruction[31], instruction[19:12], 
+        immediate = {{12{instruction[31]}}, instruction[19:12], 
                      instruction[20], instruction[30:21], 1'b0};
       
       3'b100: // Tipo U (LUI, AUIPC)
