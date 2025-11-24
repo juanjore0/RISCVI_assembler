@@ -28,10 +28,17 @@ QUARTUS/*
 *.svo
 
 # Ignorar bases de datos temporales de Quartus
-QUARTUS_VGA/db/
-QUARTUS_VGA/incremental_db/
-QUARTUS_VGA/simulation/
-QUARTUS_VGA/output_files/
+Monocycle/db/
+Monocycle/incremental_db/
+Monocycle/simulation/
+Monocycle/output_files/
+
+# Ignorar bases de datos temporales de Quartus
+Pipeline/db/
+Pipeline/incremental_db/
+Pipeline/simulation/
+Pipeline/output_files/
+
 
 # Ignorar locks de Quartus
 *.rdr.flock
