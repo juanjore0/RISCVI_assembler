@@ -43,7 +43,7 @@ module monocycle (
   logic [31:0] pc_current;
   logic [31:0] pc_next;
   logic [31:0] pc_sum;
-  logic [31:0] pc_target;   // ← NUEVO: Dirección de salto
+  logic [31:0] pc_target;   // Dirección de salto
   logic        pc_src;      
   logic [31:0] instruction;
   
@@ -194,7 +194,7 @@ module monocycle (
     .immediate(immediate)
   );
   
-  // Banco de registros - CON SALIDA PARA VGA
+  // Banco de registros 
   registerUnit reg_file (
     .rs1(rs1),
     .rs2(rs2),
@@ -205,7 +205,7 @@ module monocycle (
     .data(ruWriteData),
     .rs1Data(rs1Data),
     .rs2Data(rs2Data),
-    .registers_out(registers)  // ← NUEVA CONEXIÓN
+    .registers_out(registers) 
   );
   
   alu alu_unit (

@@ -1,8 +1,8 @@
 module immediate_generator (
   input  logic [31:0] instruction,
   input  logic [2:0]  imm_src,
-  input  logic [6:0]  opcode,      // ← AÑADIDO para detectar shifts
-  input  logic [2:0]  funct3,      // ← AÑADIDO para detectar shifts
+  input  logic [6:0]  opcode,      // detectar shifts
+  input  logic [2:0]  funct3,      // detectar shifts
   
   output logic [31:0] immediate
 );
