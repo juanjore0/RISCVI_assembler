@@ -17,7 +17,7 @@ module pipeline (
 );
 
   logic clk, reset;
-  assign clk = CLOCK_50;  // Usar reloj de 50MHz
+  assign clk = ~KEY[0];  // Usar reloj de 50MHz
   assign reset = ~KEY[1];
   
   // ============================================================
@@ -35,8 +35,6 @@ module pipeline (
   logic [31:0] ID_EX_immediate;
   logic [4:0]  ID_EX_rd, ID_EX_rs1, ID_EX_rs2;
   logic [2:0]  ID_EX_funct3;
-  
-  // Control signals ID/EX
   logic        ID_EX_ru_write;
   logic [3:0]  ID_EX_alu_op;
   logic [1:0]  ID_EX_alu_a_src;
@@ -47,6 +45,7 @@ module pipeline (
   logic [1:0]  ID_EX_ru_data_src;
   logic        ID_EX_valid;
   
+
   // EX/MEM
   logic [31:0] EX_MEM_pc_plus4;
   logic [31:0] EX_MEM_alu_result;
@@ -80,6 +79,7 @@ module pipeline (
   logic flush_IF_ID;
   logic flush_ID_EX;
   logic pc_write_enable;
+  logic take_branch;
   
   // ============================================================
   // STAGE 1: IF (Instruction Fetch)
@@ -88,7 +88,6 @@ module pipeline (
   logic [31:0] pc_plus4;
   logic [31:0] instruction;
   logic [31:0] branch_target;
-  logic        take_branch;
   
   assign pc_plus4 = pc_current + 32'd4;
   
@@ -177,7 +176,7 @@ module pipeline (
     .instruction(IF_ID_instruction),
     .imm_src(imm_src),
     .opcode(opcode),
-	  .funct3(funct3),
+	 .funct3(funct3),
     .immediate(immediate)
   );
   
@@ -201,45 +200,38 @@ module pipeline (
   // ============================================================
   // HAZARD DETECTION UNIT
   // ============================================================
-  logic load_use_hazard;
-  logic branch_hazard;
-  
-  // Load-Use Hazard: instrucción actual necesita dato de load anterior
-  assign load_use_hazard = (ID_EX_ru_data_src == 2'b01) &&  // Load en EX
-                           ID_EX_valid &&
-                           (((ID_EX_rd == rs1) && (rs1 != 5'd0)) ||
-                            ((ID_EX_rd == rs2) && (rs2 != 5'd0)));
-  
-  // Branch Hazard: hay un branch/jump en EX stage
-  assign branch_hazard = (ID_EX_br_op != 5'b00000) && ID_EX_valid;
-  
-  assign stall_pipeline = load_use_hazard;
-  assign pc_write_enable = !stall_pipeline;
-  assign flush_IF_ID = take_branch;
-  assign flush_ID_EX = stall_pipeline || take_branch;
+
+  hazard_detection_unit hazard_unit (
+    .id_rs1(rs1),
+    .id_rs2(rs2),
+    .ex_rd(ID_EX_rd),
+    .ex_ru_data_src(ID_EX_ru_data_src),
+    .ex_valid(ID_EX_valid),
+    .ex_br_op(ID_EX_br_op),
+    .take_branch(take_branch),
+    .stall_pipeline(stall_pipeline),
+    .flush_if_id(flush_IF_ID),
+    .flush_id_ex(flush_ID_EX),
+    .pc_write_enable(pc_write_enable)
+  );
   
   // ============================================================
   // FORWARDING UNIT
   // ============================================================
   logic [1:0] forward_a_sel, forward_b_sel;
   
-  always_comb begin
-    // Forward A (rs1)
-    if (EX_MEM_ru_write && EX_MEM_valid && (EX_MEM_rd != 5'd0) && (EX_MEM_rd == rs1))
-      forward_a_sel = 2'b10;  // Forward from EX/MEM
-    else if (MEM_WB_ru_write && MEM_WB_valid && (MEM_WB_rd != 5'd0) && (MEM_WB_rd == rs1))
-      forward_a_sel = 2'b01;  // Forward from MEM/WB
-    else
-      forward_a_sel = 2'b00;  // No forward
-    
-    // Forward B (rs2)
-    if (EX_MEM_ru_write && EX_MEM_valid && (EX_MEM_rd != 5'd0) && (EX_MEM_rd == rs2))
-      forward_b_sel = 2'b10;
-    else if (MEM_WB_ru_write && MEM_WB_valid && (MEM_WB_rd != 5'd0) && (MEM_WB_rd == rs2))
-      forward_b_sel = 2'b01;
-    else
-      forward_b_sel = 2'b00;
-  end
+  forwarding_unit forward_unit (
+    .ex_rs1(rs1),
+    .ex_rs2(rs2),
+    .mem_rd(EX_MEM_rd),
+    .mem_regwrite(EX_MEM_ru_write),
+    .mem_valid(EX_MEM_valid),
+    .wb_rd(MEM_WB_rd),
+    .wb_regwrite(MEM_WB_ru_write),
+    .wb_valid(MEM_WB_valid),
+    .forward_a(forward_a_sel),
+    .forward_b(forward_b_sel)
+  );
   
   // Aplicar forwarding en ID stage (para branches)
   logic [31:0] rs1_data, rs2_data;
@@ -343,48 +335,21 @@ module pipeline (
     .result(alu_result)
   );
   
-  // Branch Decision (en EX stage)
-  logic branch_taken;
-  logic is_branch, is_jal, is_jalr;
-  
-  assign is_branch = (ID_EX_br_op[4:3] == 2'b01);
-  assign is_jal    = (ID_EX_br_op == 5'b10000);
-  assign is_jalr   = (ID_EX_br_op == 5'b10001);
-  
-  // Comparaciones para branches
-  always_comb begin
-    branch_taken = 1'b0;
-    if (is_branch) begin
-      case (ID_EX_funct3)
-        3'b000: branch_taken = (ID_EX_rs1_data == ID_EX_rs2_data);           // BEQ
-        3'b001: branch_taken = (ID_EX_rs1_data != ID_EX_rs2_data);           // BNE
-        3'b100: branch_taken = ($signed(ID_EX_rs1_data) < $signed(ID_EX_rs2_data));  // BLT
-        3'b101: branch_taken = ($signed(ID_EX_rs1_data) >= $signed(ID_EX_rs2_data)); // BGE
-        3'b110: branch_taken = (ID_EX_rs1_data < ID_EX_rs2_data);            // BLTU
-        3'b111: branch_taken = (ID_EX_rs1_data >= ID_EX_rs2_data);           // BGEU
-        default: branch_taken = 1'b0;
-      endcase
-    end
-  end
-  
-  // Branch Target Calculation
-  always_comb begin
-    take_branch = 1'b0;
-    branch_target = pc_plus4;
-    
-    if (ID_EX_valid) begin
-      if (is_jalr) begin
-        take_branch = 1'b1;
-        branch_target = (alu_result & 32'hFFFFFFFE);  // JALR: (rs1 + imm) & ~1
-      end else if (is_jal) begin
-        take_branch = 1'b1;
-        branch_target = ID_EX_pc + ID_EX_immediate;   // JAL: PC + imm
-      end else if (is_branch && branch_taken) begin
-        take_branch = 1'b1;
-        branch_target = ID_EX_pc + ID_EX_immediate;   // Branch: PC + imm
-      end
-    end
-  end
+  // ============================================================
+  // BRANCH DECISION UNIT (Modularizado)
+  // ============================================================
+  branch_decision_unit branch_unit (
+    .rs1_data(ID_EX_rs1_data),
+    .rs2_data(ID_EX_rs2_data),
+    .br_op(ID_EX_br_op),
+    .funct3(ID_EX_funct3),
+    .valid(ID_EX_valid),
+    .pc_current(ID_EX_pc),
+    .immediate(ID_EX_immediate),
+    .alu_result(alu_result),
+    .take_branch(take_branch),
+    .branch_target(branch_target)
+  );
   
   // EX/MEM Pipeline Register
   always_ff @(posedge clk) begin
