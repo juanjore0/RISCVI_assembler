@@ -142,7 +142,7 @@ module control_unit (
         ru_data_src  = 2'b00;   // Resultado de ALU (PC + imm)
       end		
 
-      7'b1110011: begin // SYSTEM (ECALL, EBREAK)
+      7'b1110011: begin // SYSTEM (EBREAK)
         ru_write     = 1'b0;    // NO escribir en registros
         alu_op       = 4'bxxxx;
         imm_src      = 3'b000;
