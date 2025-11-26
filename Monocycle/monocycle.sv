@@ -107,38 +107,6 @@ module monocycle (
   assign LEDR[7:0] = pc_current[7:0];
   assign LEDR[9:8] = instruction[1:0];
   
-  // ========== DETECTOR DE CAMBIOS EN REGISTROS ==========
-  logic [31:0] registers_prev [0:31];
-  logic [15:0] highlight_counter [0:31];  // Contador de highlight por registro
-  
-  always_ff @(posedge CLOCK_50 or posedge reset) begin
-    if (reset) begin
-      reg_changed_mask <= 32'h0;
-      for (int i = 0; i < 32; i++) begin
-        registers_prev[i] <= 32'h0;
-        highlight_counter[i] <= 16'h0;
-      end
-    end else begin
-      for (int i = 0; i < 32; i++) begin
-        // Detectar cambio
-        if (registers[i] != registers_prev[i]) begin
-          reg_changed_mask[i] <= 1'b1;
-          highlight_counter[i] <= 16'hFFFF;  // ~1.3ms @ 50MHz
-          registers_prev[i] <= registers[i];
-        end 
-        // Mantener highlight por un tiempo
-        else if (highlight_counter[i] > 0) begin
-          highlight_counter[i] <= highlight_counter[i] - 1;
-          reg_changed_mask[i] <= 1'b1;
-        end 
-        // Apagar highlight
-        else begin
-          reg_changed_mask[i] <= 1'b0;
-        end
-      end
-    end
-  end
-  
   // ========== MÓDULOS DEL PROCESADOR ==========
   
   assign pc_next = pc_src ? pc_target : pc_sum;
@@ -254,13 +222,13 @@ module monocycle (
     // PC e Instrucción
     .pc_value(pc_current),
     .instruction(instruction),
-	 .br_op(br_op), 
+	  .br_op(br_op), 
 	 
     // ALU
     .alu_operand_a(aluOperandA),
     .alu_operand_b(aluOperandB),
     .alu_result(aluResult),
-	 .alu_op(alu_op),
+	  .alu_op(alu_op),
     
     // Inmediato
     .immediate(immediate),
