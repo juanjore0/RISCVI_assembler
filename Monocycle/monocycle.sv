@@ -254,6 +254,7 @@ module monocycle (
     // PC e Instrucción
     .pc_value(pc_current),
     .instruction(instruction),
+	 .br_op(br_op), 
 	 
     // ALU
     .alu_operand_a(aluOperandA),

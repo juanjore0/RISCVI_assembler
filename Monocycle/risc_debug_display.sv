@@ -2,6 +2,7 @@
 // risc_debug_display.sv - DISPLAY COMPLETO DE DEBUG
 // VERSIÓN COMPATIBLE CON QUARTUS (SIN VARIABLES LOCALES EN ALWAYS_COMB)
 // CORRECCIÓN: Inversión de índices de registros para display
+// NUEVO: Indicador visual de EBREAK/HALT
 // ============================================================
 
 
@@ -18,6 +19,7 @@ module risc_debug_display(
     // PC e Instrucción
     input  logic [31:0] pc_value,
     input  logic [31:0] instruction,
+    input  logic [4:0]  br_op,         // ← NUEVO: para detectar EBREAK
     
     // ALU
     input  logic [31:0] alu_operand_a,
@@ -79,6 +81,7 @@ module risc_debug_display(
 	 logic [3:0] alu_op_sync1;
     logic [31:0] imm_sync1;
     logic [31:0] mem_sync1 [0:31];
+    logic [4:0] br_op_sync1;  // ← NUEVO
     
     always_ff @(posedge clock) begin
         regs_sync1 <= regs_demo;
@@ -90,6 +93,7 @@ module risc_debug_display(
 		  alu_op_sync1 <= alu_op;
         imm_sync1 <= immediate;
         mem_sync1 <= memory;
+        br_op_sync1 <= br_op;  // ← NUEVO
     end
     
     logic [31:0] regs_vga [0:31];
@@ -98,6 +102,7 @@ module risc_debug_display(
 	 logic [3:0]  alu_op_vga;
     logic [31:0] imm_vga;
     logic [31:0] mem_vga [0:31];
+    logic [4:0]  br_op_vga;  // ← NUEVO
     
     always_ff @(posedge vgaclk) begin
         regs_vga <= regs_sync1;
@@ -109,8 +114,14 @@ module risc_debug_display(
 		  alu_op_vga <= alu_op_sync1; 
         imm_vga <= imm_sync1;
         mem_vga <= mem_sync1;
+        br_op_vga <= br_op_sync1;  // ← NUEVO
     end
 
+    // ============================================================
+    // Detector de EBREAK
+    // ============================================================
+    logic is_ebreak;
+    assign is_ebreak = (br_op_vga[4:3] == 2'b11);  // ← NUEVO
 
     // ============================================================
     // Font renderer
@@ -149,7 +160,7 @@ module risc_debug_display(
     logic reg_column_sel;
     logic [5:0] reg_local_col;
     logic [4:0] reg_idx;
-    logic [4:0] actual_reg_idx;  // ← NUEVO: índice real invertido
+    logic [4:0] actual_reg_idx;
     
     assign in_reg_window = (x >= REG_X && x < REG_X + REG_W && y >= REG_Y && y < REG_Y + REG_H);
     assign reg_rel_x = in_reg_window ? (x - REG_X) : 11'd0;
@@ -159,7 +170,7 @@ module risc_debug_display(
     assign reg_column_sel = (reg_char_col >= REG_COL_WIDTH);
     assign reg_local_col = reg_column_sel ? (reg_char_col - REG_COL_WIDTH) : reg_char_col;
     assign reg_idx = reg_column_sel ? (reg_char_row - 2 + 5'd16) : (reg_char_row - 2);
-    assign actual_reg_idx = 5'd31 - reg_idx;  // ← CORRECCIÓN: Invertir el índice
+    assign actual_reg_idx = 5'd31 - reg_idx;
     
     // ============================================================
     // VENTANA 2: PC E INSTRUCCIÓN
@@ -236,13 +247,13 @@ module risc_debug_display(
             mem_display_idx = mem_row_offset;
         end else if (mem_char_col < 30) begin
             mem_column = 1;
-            mem_display_idx = 8 + mem_row_offset;   // Cambio: 8 en vez de 16
+            mem_display_idx = 8 + mem_row_offset;
         end else if (mem_char_col < 45) begin
             mem_column = 2;
-            mem_display_idx = 16 + mem_row_offset;  // Cambio: 16 en vez de 32
+            mem_display_idx = 16 + mem_row_offset;
         end else if (mem_char_col < 60) begin
             mem_column = 3;
-            mem_display_idx = 24 + mem_row_offset;  // Cambio: 24 en vez de 48
+            mem_display_idx = 24 + mem_row_offset;
         end else begin
             mem_column = 0;
             mem_display_idx = 0;
@@ -395,7 +406,6 @@ module risc_debug_display(
                     6'd4: ascii_code = 8'd32;
                     6'd5: ascii_code = "0";
                     6'd6: ascii_code = "x";
-                    // ← CORRECCIÓN: Usar actual_reg_idx (invertido) para acceder al array
                     6'd7:  ascii_code = to_hex(regs_vga[actual_reg_idx][31:28]);
                     6'd8:  ascii_code = to_hex(regs_vga[actual_reg_idx][27:24]);
                     6'd9:  ascii_code = to_hex(regs_vga[actual_reg_idx][23:20]);
@@ -417,6 +427,15 @@ module risc_debug_display(
                         6'd3: ascii_code = "&";
                         6'd5: ascii_code = "I"; 6'd6: ascii_code = "N"; 6'd7: ascii_code = "S";
                         6'd8: ascii_code = "T"; 6'd9: ascii_code = "R";
+                        // ← NUEVO: Mostrar [HALTED] si EBREAK
+                        6'd15: ascii_code = is_ebreak ? "[" : " ";
+                        6'd16: ascii_code = is_ebreak ? "H" : " ";
+                        6'd17: ascii_code = is_ebreak ? "A" : " ";
+                        6'd18: ascii_code = is_ebreak ? "L" : " ";
+                        6'd19: ascii_code = is_ebreak ? "T" : " ";
+                        6'd20: ascii_code = is_ebreak ? "E" : " ";
+                        6'd21: ascii_code = is_ebreak ? "D" : " ";
+                        6'd22: ascii_code = is_ebreak ? "]" : " ";
                         default: ascii_code = 8'd32;
                     endcase
                 end
@@ -479,7 +498,7 @@ module risc_debug_display(
 						  endcase
 				    end
 				    5'd1: if (alu_char_col < 20) ascii_code = 8'd45;
-				    5'd2: begin  // ⬇️ NUEVO: Línea de operación
+				    5'd2: begin
 					  	  case (alu_char_col)
 							   6'd0: ascii_code = "O"; 6'd1: ascii_code = "P"; 6'd2: ascii_code = ":";
 							   6'd4: ascii_code = alu_op_char(0, alu_op_vga);
@@ -492,8 +511,8 @@ module risc_debug_display(
 							   default: ascii_code = 8'd32;
 						  endcase
 				    end
-				    5'd3: if (alu_char_col < 13) ascii_code = 8'd45;  // ⬅️ Nueva línea separadora
-				    5'd4: begin  // ⬅️ Mover A: una línea abajo
+				    5'd3: if (alu_char_col < 13) ascii_code = 8'd45;
+				    5'd4: begin
 				  		  case (alu_char_col)
 							   6'd0: ascii_code = "A"; 6'd1: ascii_code = ":";
 							   6'd3: ascii_code = "0"; 6'd4: ascii_code = "x";
@@ -508,7 +527,7 @@ module risc_debug_display(
 							   default: ascii_code = 8'd32;
 						  endcase
 				    end
-				    5'd5: begin  // ⬅️ Mover B: una línea abajo
+				    5'd5: begin
 						  case (alu_char_col)
 							   6'd0: ascii_code = "B"; 6'd1: ascii_code = ":";
 							   6'd3: ascii_code = "0"; 6'd4: ascii_code = "x";
@@ -523,8 +542,8 @@ module risc_debug_display(
 							   default: ascii_code = 8'd32;
 						  endcase
 				    end
-				    5'd6: if (alu_char_col < 13) ascii_code = 8'd45;  // ⬅️ Mover línea separadora
-				    5'd7: begin  // ⬅️ Mover R: una línea abajo
+				    5'd6: if (alu_char_col < 13) ascii_code = 8'd45;
+				    5'd7: begin
 						  case (alu_char_col)
 							   6'd0: ascii_code = "R"; 6'd1: ascii_code = ":";
 							   6'd3: ascii_code = "0"; 6'd4: ascii_code = "x";
@@ -542,10 +561,7 @@ module risc_debug_display(
 				    default: ascii_code = 8'd32;
 			   endcase
 		  end
-
-
-        
-        else if (in_mem_window) begin
+else if (in_mem_window) begin
             if (mem_char_row == 0) begin
                 case (mem_char_col)
                     6'd0: ascii_code = "M"; 6'd1: ascii_code = "E"; 6'd2: ascii_code = "M";
@@ -588,7 +604,12 @@ module risc_debug_display(
         if (~videoOn) begin
             {vga_red, vga_green, vga_blue} = 24'h000000;
         end else if (pixel_on) begin
-            {vga_red, vga_green, vga_blue} = 24'hFFFFFF;
+            // ← NUEVO: Texto ROJO si está en EBREAK
+            if (is_ebreak && in_info_window && info_char_col >= 15 && info_char_col <= 22) begin
+                {vga_red, vga_green, vga_blue} = 24'hFF0000;  // ROJO para [HALTED]
+            end else begin
+                {vga_red, vga_green, vga_blue} = 24'hFFFFFF;  // Blanco normal
+            end
         end else begin
             {vga_red, vga_green, vga_blue} = 24'h000000;
         end
