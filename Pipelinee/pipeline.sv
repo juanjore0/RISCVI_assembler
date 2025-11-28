@@ -104,9 +104,11 @@ module pipeline (
   
   // Instruction Memory
   instruction_memory imem (
-    .address(pc_current),
-    .instruction(instruction)
-  );
+  .address(pc_current),
+  .page_select(SW[7:6]),        //SW[7:6] 
+  .instruction(instruction),
+  .memory_out(instruction_display)  
+);
   
   // IF/ID Pipeline Register
   always_ff @(posedge clk) begin
@@ -143,7 +145,9 @@ module pipeline (
   logic [2:0]  dm_ctrl;
   logic [4:0]  br_op;
   logic [1:0]  ru_data_src;
-  
+
+  logic [31:0] instruction_display [0:31];
+
   // Instruction Decoder
   instruction_decoder decoder (
     .instruction(IF_ID_instruction),
@@ -440,6 +444,7 @@ module pipeline (
     .clock(CLOCK_50),
     .sw0(reset),
     .sw1(SW[2]), .sw2(SW[3]), .sw3(SW[4]), .sw4(SW[5]), .sw5(SW[6]),
+    .page_select(SW[7:6]),
     .regs_demo(registers),
     .changed_mask(reg_changed_mask),
     .pc_value(pc_current),
@@ -449,6 +454,7 @@ module pipeline (
     .alu_result(alu_result),
     .immediate(ID_EX_immediate),
     .memory(memory_display),
+    .instruction_memory(instruction_display),
     .vga_red(VGA_R),
     .vga_green(VGA_G),
     .vga_blue(VGA_B),
