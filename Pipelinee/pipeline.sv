@@ -449,6 +449,7 @@ module pipeline (
     .changed_mask(reg_changed_mask),
     .pc_value(pc_current),
     .instruction(IF_ID_instruction),
+    .br_op(br_op),
     .alu_operand_a(alu_operand_a),
     .alu_operand_b(alu_operand_b),
     .alu_result(alu_result),
