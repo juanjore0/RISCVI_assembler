@@ -18,11 +18,13 @@ module branch_unit (
   logic is_branch;
   logic is_jal;
   logic is_jalr;
+  logic is_system;  //  para EBREAK
   
   // Decodificar tipo de operación
   assign is_branch = (br_op[4:3] == 2'b01);  // Branches condicionales
   assign is_jal    = (br_op == 5'b10000);    // JAL
   assign is_jalr   = (br_op == 5'b10001);    // JALR
+  assign is_system = (br_op[4:3] == 2'b11);  // EBREAK
   
   // Lógica de comparación para branches
   always_comb begin
@@ -43,7 +45,11 @@ module branch_unit (
   
   // Calcular dirección de salto
   always_comb begin
-    if (is_jalr) begin
+    if (is_system) begin
+      // ← NUEVO: EBREAK/ECALL - Congelar PC
+      pc_target = pc_current;  // Mantener PC sin cambios
+      pc_src = 1'b1;           // Usar pc_target (que es igual a pc_current)
+    end else if (is_jalr) begin
       // JALR: saltar a (rs1 + imm) & ~1
       pc_target = (alu_result & 32'hFFFFFFFE);
       pc_src = 1'b1;

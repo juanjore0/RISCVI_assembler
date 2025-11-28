@@ -98,7 +98,7 @@ module pipeline (
   always_ff @(posedge clk) begin
     if (reset)
       pc_current <= 32'h00000000;
-    else if (pc_write_enable)
+    else if (pc_write_enable && !reset)
       pc_current <= pc_next;
   end
   
