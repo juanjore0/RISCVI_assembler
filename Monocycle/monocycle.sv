@@ -1,6 +1,7 @@
 // ============================================================
 // monocycle.sv - Procesador RISC-V con Display VGA
 // TOP MODULE para DE1-SoC con salida VGA
+// SW[7:6]: Selección de página para memoria de instrucciones 
 // ============================================================
 
 module monocycle (
@@ -34,7 +35,7 @@ module monocycle (
   logic        show_result;
   logic        show_high_bits;
   
-  assign clk = ~KEY[0];              // KEY[0] como reloj manual
+  assign clk = SW[0] ? CLOCK_50 : ~KEY[0]; // SW[0]: 0=reloj placa, 1=reloj manual
   assign reset = ~KEY[1];            // KEY[1] como reset
   assign show_result = SW[9];        // SW[9]: 0=instrucción, 1=resultado
   assign show_high_bits = SW[8];     // SW[8]: 0=bits[15:0], 1=bits[31:16]
@@ -73,9 +74,10 @@ module monocycle (
   logic [31:0] memReadData;
   logic        subsra;
   
-  // ← NUEVO: Para VGA debug
+  // Para VGA debug
   logic [31:0] registers [0:31];
   logic [31:0] reg_changed_mask;
+  logic [31:0] instruction_display [0:31];
   
   assign subsra = alu_op[3];
 
@@ -107,38 +109,6 @@ module monocycle (
   assign LEDR[7:0] = pc_current[7:0];
   assign LEDR[9:8] = instruction[1:0];
   
-  // ========== DETECTOR DE CAMBIOS EN REGISTROS ==========
-  logic [31:0] registers_prev [0:31];
-  logic [15:0] highlight_counter [0:31];  // Contador de highlight por registro
-  
-  always_ff @(posedge CLOCK_50 or posedge reset) begin
-    if (reset) begin
-      reg_changed_mask <= 32'h0;
-      for (int i = 0; i < 32; i++) begin
-        registers_prev[i] <= 32'h0;
-        highlight_counter[i] <= 16'h0;
-      end
-    end else begin
-      for (int i = 0; i < 32; i++) begin
-        // Detectar cambio
-        if (registers[i] != registers_prev[i]) begin
-          reg_changed_mask[i] <= 1'b1;
-          highlight_counter[i] <= 16'hFFFF;  // ~1.3ms @ 50MHz
-          registers_prev[i] <= registers[i];
-        end 
-        // Mantener highlight por un tiempo
-        else if (highlight_counter[i] > 0) begin
-          highlight_counter[i] <= highlight_counter[i] - 1;
-          reg_changed_mask[i] <= 1'b1;
-        end 
-        // Apagar highlight
-        else begin
-          reg_changed_mask[i] <= 1'b0;
-        end
-      end
-    end
-  end
-  
   // ========== MÓDULOS DEL PROCESADOR ==========
   
   assign pc_next = pc_src ? pc_target : pc_sum;
@@ -157,9 +127,11 @@ module monocycle (
   );
   
   instruction_memory imem (
-    .address(pc_current),
-    .instruction(instruction)
-  );
+  .address(pc_current),
+  .page_select(SW[7:6]),        //SW[7:6] 
+  .instruction(instruction),
+  .memory_out(instruction_display)  
+);
   
   instruction_decoder decoder (
     .instruction(instruction),
@@ -246,7 +218,8 @@ module monocycle (
     .clock(CLOCK_50),
     .sw0(reset),
     .sw1(SW[2]), .sw2(SW[3]), .sw3(SW[4]), .sw4(SW[5]), .sw5(SW[6]),
-    
+    .page_select(SW[7:6]),
+
     // Registros
     .regs_demo(registers),
     .changed_mask(reg_changed_mask),
@@ -254,19 +227,20 @@ module monocycle (
     // PC e Instrucción
     .pc_value(pc_current),
     .instruction(instruction),
-	 .br_op(br_op), 
+	  .br_op(br_op), 
 	 
     // ALU
     .alu_operand_a(aluOperandA),
     .alu_operand_b(aluOperandB),
     .alu_result(aluResult),
-	 .alu_op(alu_op),
+	  .alu_op(alu_op),
     
     // Inmediato
     .immediate(immediate),
     
     // Memoria
     .memory(memory_display),
+    .instruction_memory(instruction_display),
     
     // VGA outputs
     .vga_red(VGA_R),

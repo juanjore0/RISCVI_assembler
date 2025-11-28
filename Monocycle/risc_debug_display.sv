@@ -1,8 +1,5 @@
 // ============================================================
-// risc_debug_display.sv - DISPLAY COMPLETO DE DEBUG
-// VERSIÓN COMPATIBLE CON QUARTUS (SIN VARIABLES LOCALES EN ALWAYS_COMB)
-// CORRECCIÓN: Inversión de índices de registros para display
-// NUEVO: Indicador visual de EBREAK/HALT
+// risc_debug_display.sv - DISPLAY 
 // ============================================================
 
 
@@ -10,7 +7,7 @@ module risc_debug_display(
     input  logic        clock,
     input  logic        sw0,
     input  logic        sw1, sw2, sw3, sw4, sw5,
-
+    input  logic [1:0]  page_select,  // Para seleccionar página de instrucciones
 
     // Registros
     input  logic [31:0] regs_demo [0:31],
@@ -19,7 +16,7 @@ module risc_debug_display(
     // PC e Instrucción
     input  logic [31:0] pc_value,
     input  logic [31:0] instruction,
-    input  logic [4:0]  br_op,         // ← NUEVO: para detectar EBREAK
+    input  logic [4:0]  br_op,         // EBREAK
     
     // ALU
     input  logic [31:0] alu_operand_a,
@@ -32,7 +29,7 @@ module risc_debug_display(
     
     // Memoria 
     input  logic [31:0] memory [0:31],
-
+    input  logic [31:0] instruction_memory [0:31],
 
     output logic [7:0]  vga_red,
     output logic [7:0]  vga_green,
@@ -41,7 +38,6 @@ module risc_debug_display(
     output logic        vga_vsync,
     output logic        vga_clock
 );
-
 
     // ============================================================
     // Señales VGA base
@@ -78,10 +74,13 @@ module risc_debug_display(
     logic [31:0] regs_sync1 [0:31];
     logic [31:0] pc_sync1, instruction_sync1;
     logic [31:0] alu_a_sync1, alu_b_sync1, alu_r_sync1;
-	 logic [3:0] alu_op_sync1;
+	logic [3:0] alu_op_sync1;
     logic [31:0] imm_sync1;
     logic [31:0] mem_sync1 [0:31];
-    logic [4:0] br_op_sync1;  // ← NUEVO
+    logic [31:0] imem_sync1 [0:31];
+    logic [4:0] br_op_sync1;
+    logic [1:0] page_sync1; 
+
     
     always_ff @(posedge clock) begin
         regs_sync1 <= regs_demo;
@@ -93,16 +92,20 @@ module risc_debug_display(
 		  alu_op_sync1 <= alu_op;
         imm_sync1 <= immediate;
         mem_sync1 <= memory;
-        br_op_sync1 <= br_op;  // ← NUEVO
+        imem_sync1 <= instruction_memory;
+        br_op_sync1 <= br_op;  
+        page_sync1 <= page_select;
     end
     
     logic [31:0] regs_vga [0:31];
     logic [31:0] pc_vga, instruction_vga;
     logic [31:0] alu_a_vga, alu_b_vga, alu_r_vga;
-	 logic [3:0]  alu_op_vga;
+	logic [3:0]  alu_op_vga;
     logic [31:0] imm_vga;
     logic [31:0] mem_vga [0:31];
-    logic [4:0]  br_op_vga;  // ← NUEVO
+    logic [4:0]  br_op_vga; 
+    logic [31:0] imem_vga [0:31];
+    logic [1:0]  page_vga;
     
     always_ff @(posedge vgaclk) begin
         regs_vga <= regs_sync1;
@@ -111,10 +114,12 @@ module risc_debug_display(
         alu_a_vga <= alu_a_sync1;
         alu_b_vga <= alu_b_sync1;
         alu_r_vga <= alu_r_sync1;
-		  alu_op_vga <= alu_op_sync1; 
+		alu_op_vga <= alu_op_sync1; 
         imm_vga <= imm_sync1;
         mem_vga <= mem_sync1;
-        br_op_vga <= br_op_sync1;  // ← NUEVO
+        br_op_vga <= br_op_sync1;
+        imem_vga <= imem_sync1;
+        page_vga <= page_sync1;
     end
 
     // ============================================================
@@ -225,6 +230,7 @@ module risc_debug_display(
     logic [9:0] mem_rel_y;
     logic [5:0] mem_char_col;
     logic [4:0] mem_char_row;
+
     
     // Variables para memoria (declaradas fuera de always_comb)
     logic [5:0] mem_display_idx;
@@ -263,6 +269,53 @@ module risc_debug_display(
     end
     
     // ============================================================
+    // VENTANA 5: INSTRUCTION MEMORY
+    // ============================================================
+    localparam IMEM_X = 10;
+    localparam IMEM_Y = 485;
+    localparam IMEM_W = 60 * CHAR_W;
+    localparam IMEM_H = 10 * CHAR_H;
+
+    logic in_imem_window;
+    logic [10:0] imem_rel_x;
+    logic [9:0] imem_rel_y;
+    logic [5:0] imem_char_col;
+    logic [4:0] imem_char_row;
+    logic [5:0] imem_display_idx;
+    logic [1:0] imem_column;
+    logic [3:0] imem_row_offset;
+    logic [3:0] imem_col_pos;
+
+    assign in_imem_window = (x >= IMEM_X && x < IMEM_X + IMEM_W && y >= IMEM_Y && y < IMEM_Y + IMEM_H);
+    assign imem_rel_x = in_imem_window ? (x - IMEM_X) : 11'd0;
+    assign imem_rel_y = in_imem_window ? (y - IMEM_Y) : 10'd0;
+    assign imem_char_col = imem_rel_x / CHAR_W;
+    assign imem_char_row = imem_rel_y / CHAR_H;
+    assign imem_row_offset = (imem_char_row >= 2) ? (imem_char_row - 2) : 4'd0;
+
+    always_comb begin
+        if (imem_char_col < 15) begin
+            imem_column = 0;
+            imem_display_idx = imem_row_offset;
+        end else if (imem_char_col < 30) begin
+            imem_column = 1;
+            imem_display_idx = 8 + imem_row_offset;
+        end else if (imem_char_col < 45) begin
+            imem_column = 2;
+            imem_display_idx = 16 + imem_row_offset;
+        end else if (imem_char_col < 60) begin
+            imem_column = 3;
+            imem_display_idx = 24 + imem_row_offset;
+        end else begin
+            imem_column = 0;
+            imem_display_idx = 0;
+        end
+        
+        imem_col_pos = imem_char_col - (imem_column * 15);
+    end
+
+
+    // ============================================================
     // Posición dentro del carácter
     // ============================================================
     logic [3:0] char_row_in;
@@ -281,6 +334,10 @@ module risc_debug_display(
         end else if (in_mem_window) begin
             char_row_in = mem_rel_y[3:0];
             char_col_in = mem_rel_x[2:0];
+        end else if (in_imem_window) begin  
+            char_row_in = imem_rel_y[3:0];
+            char_col_in = imem_rel_x[2:0];
+
         end else begin
             char_row_in = 4'd0;
             char_col_in = 3'd0;
@@ -561,34 +618,87 @@ module risc_debug_display(
 				    default: ascii_code = 8'd32;
 			   endcase
 		  end
-else if (in_mem_window) begin
-            if (mem_char_row == 0) begin
-                case (mem_char_col)
-                    6'd0: ascii_code = "M"; 6'd1: ascii_code = "E"; 6'd2: ascii_code = "M";
-                    6'd3: ascii_code = "O"; 6'd4: ascii_code = "R"; 6'd5: ascii_code = "Y";
-                    6'd7: ascii_code = "("; 6'd8: ascii_code = "3"; 6'd9: ascii_code = "2";
-                    6'd10: ascii_code = ")";
+        else if (in_mem_window) begin
+                    if (mem_char_row == 0) begin
+                        case (mem_char_col)
+                            6'd0: ascii_code = "M"; 6'd1: ascii_code = "E"; 6'd2: ascii_code = "M";
+                            6'd3: ascii_code = "O"; 6'd4: ascii_code = "R"; 6'd5: ascii_code = "Y";
+                            6'd7: ascii_code = "("; 6'd8: ascii_code = "3"; 6'd9: ascii_code = "2";
+                            6'd10: ascii_code = ")";
+                            default: ascii_code = 8'd32;
+                        endcase
+                    end else if (mem_char_row == 1) begin
+                        ascii_code = (mem_char_col < 60) ? 8'd45 : 8'd32;
+                    end else if (mem_char_row >= 2 && mem_char_row < 10 && mem_char_col < 60) begin
+                        case (mem_col_pos)
+                            4'd0: ascii_code = "[";
+                            4'd1: ascii_code = 8'd48 + (mem_display_idx / 10);
+                            4'd2: ascii_code = 8'd48 + (mem_display_idx % 10);
+                            4'd3: ascii_code = "]";
+                            4'd4: ascii_code = ":";
+                            4'd5: ascii_code = "0";
+                            4'd6: ascii_code = "x";
+                            4'd7:  ascii_code = to_hex(mem_vga[mem_display_idx][31:28]);
+                            4'd8:  ascii_code = to_hex(mem_vga[mem_display_idx][27:24]);
+                            4'd9:  ascii_code = to_hex(mem_vga[mem_display_idx][23:20]);
+                            4'd10: ascii_code = to_hex(mem_vga[mem_display_idx][19:16]);
+                            4'd11: ascii_code = to_hex(mem_vga[mem_display_idx][15:12]);
+                            4'd12: ascii_code = to_hex(mem_vga[mem_display_idx][11:8]);
+                            4'd13: ascii_code = to_hex(mem_vga[mem_display_idx][7:4]);
+                            4'd14: ascii_code = to_hex(mem_vga[mem_display_idx][3:0]);
+                            default: ascii_code = 8'd32;
+                        endcase
+                    end else begin
+                        ascii_code = 8'd32;
+                    end
+                end
+            else if (in_imem_window) begin
+            if (imem_char_row == 0) begin
+                case (imem_char_col)
+                    6'd0: ascii_code = "P"; 6'd1: ascii_code = "R"; 6'd2: ascii_code = "O";
+                    6'd3: ascii_code = "G"; 6'd4: ascii_code = "R"; 6'd5: ascii_code = "A";
+                    6'd6: ascii_code = "M"; 6'd7: ascii_code = " "; 6'd8: ascii_code = "M";
+                    6'd9: ascii_code = "E"; 6'd10: ascii_code = "M";
+                    // Mostrar número de página [0-3]
+                    6'd12: ascii_code = "[";
+                    6'd13: ascii_code = "P";
+                    6'd14: ascii_code = "G";
+                    6'd15: ascii_code = ":";
+                    6'd16: ascii_code = 8'd48 + page_vga;  // Mostrar página actual
+                    6'd17: ascii_code = "]";
+                    // Mostrar rango de direcciones
+                    6'd19: ascii_code = "(";
+                    6'd20: ascii_code = 8'd48 + ((page_vga * 32) / 10);
+                    6'd21: ascii_code = 8'd48 + ((page_vga * 32) % 10);
+                    6'd22: ascii_code = "-";
+                    6'd23: ascii_code = 8'd48 + ((page_vga * 32 + 31) / 100);
+                    6'd24: ascii_code = 8'd48 + (((page_vga * 32 + 31) / 10) % 10);
+                    6'd25: ascii_code = 8'd48 + ((page_vga * 32 + 31) % 10);
+                    6'd26: ascii_code = ")";
                     default: ascii_code = 8'd32;
                 endcase
-            end else if (mem_char_row == 1) begin
-                ascii_code = (mem_char_col < 60) ? 8'd45 : 8'd32;
-            end else if (mem_char_row >= 2 && mem_char_row < 10 && mem_char_col < 60) begin
-                case (mem_col_pos)
+            end else if (imem_char_row == 1) begin
+                ascii_code = (imem_char_col < 60) ? 8'd45 : 8'd32;
+            end else if (imem_char_row >= 2 && imem_char_row < 10 && imem_char_col < 60) begin
+                logic [7:0] actual_addr;
+                actual_addr = (page_vga * 32) + imem_display_idx;
+                
+                case (imem_col_pos)
                     4'd0: ascii_code = "[";
-                    4'd1: ascii_code = 8'd48 + (mem_display_idx / 10);
-                    4'd2: ascii_code = 8'd48 + (mem_display_idx % 10);
-                    4'd3: ascii_code = "]";
-                    4'd4: ascii_code = ":";
+                    4'd1: ascii_code = 8'd48 + (actual_addr / 100);
+                    4'd2: ascii_code = 8'd48 + ((actual_addr / 10) % 10);
+                    4'd3: ascii_code = 8'd48 + (actual_addr % 10);
+                    4'd4: ascii_code = "]";
                     4'd5: ascii_code = "0";
                     4'd6: ascii_code = "x";
-                    4'd7:  ascii_code = to_hex(mem_vga[mem_display_idx][31:28]);
-                    4'd8:  ascii_code = to_hex(mem_vga[mem_display_idx][27:24]);
-                    4'd9:  ascii_code = to_hex(mem_vga[mem_display_idx][23:20]);
-                    4'd10: ascii_code = to_hex(mem_vga[mem_display_idx][19:16]);
-                    4'd11: ascii_code = to_hex(mem_vga[mem_display_idx][15:12]);
-                    4'd12: ascii_code = to_hex(mem_vga[mem_display_idx][11:8]);
-                    4'd13: ascii_code = to_hex(mem_vga[mem_display_idx][7:4]);
-                    4'd14: ascii_code = to_hex(mem_vga[mem_display_idx][3:0]);
+                    4'd7:  ascii_code = to_hex(imem_vga[imem_display_idx][31:28]);
+                    4'd8:  ascii_code = to_hex(imem_vga[imem_display_idx][27:24]);
+                    4'd9:  ascii_code = to_hex(imem_vga[imem_display_idx][23:20]);
+                    4'd10: ascii_code = to_hex(imem_vga[imem_display_idx][19:16]);
+                    4'd11: ascii_code = to_hex(imem_vga[imem_display_idx][15:12]);
+                    4'd12: ascii_code = to_hex(imem_vga[imem_display_idx][11:8]);
+                    4'd13: ascii_code = to_hex(imem_vga[imem_display_idx][7:4]);
+                    4'd14: ascii_code = to_hex(imem_vga[imem_display_idx][3:0]);
                     default: ascii_code = 8'd32;
                 endcase
             end else begin
