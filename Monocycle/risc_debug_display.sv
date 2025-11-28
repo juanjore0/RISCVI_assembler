@@ -272,7 +272,7 @@ module risc_debug_display(
     // VENTANA 5: INSTRUCTION MEMORY
     // ============================================================
     localparam IMEM_X = 10;
-    localparam IMEM_Y = 500;
+    localparam IMEM_Y = 485;
     localparam IMEM_W = 60 * CHAR_W;
     localparam IMEM_H = 10 * CHAR_H;
 
