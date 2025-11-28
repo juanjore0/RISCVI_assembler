@@ -1,6 +1,7 @@
 // ============================================================
 // monocycle.sv - Procesador RISC-V con Display VGA
 // TOP MODULE para DE1-SoC con salida VGA
+// SW[7:6]: Selección de página para memoria de instrucciones 
 // ============================================================
 
 module monocycle (
@@ -34,7 +35,7 @@ module monocycle (
   logic        show_result;
   logic        show_high_bits;
   
-  assign clk = ~KEY[0];              // KEY[0] como reloj manual
+  assign clk = SW[0] ? CLOCK_50 : ~KEY[0]; // SW[0]: 0=reloj placa, 1=reloj manual
   assign reset = ~KEY[1];            // KEY[1] como reset
   assign show_result = SW[9];        // SW[9]: 0=instrucción, 1=resultado
   assign show_high_bits = SW[8];     // SW[8]: 0=bits[15:0], 1=bits[31:16]
@@ -73,9 +74,10 @@ module monocycle (
   logic [31:0] memReadData;
   logic        subsra;
   
-  // ← NUEVO: Para VGA debug
+  // Para VGA debug
   logic [31:0] registers [0:31];
   logic [31:0] reg_changed_mask;
+  logic [31:0] instruction_display [0:31];
   
   assign subsra = alu_op[3];
 
@@ -125,9 +127,11 @@ module monocycle (
   );
   
   instruction_memory imem (
-    .address(pc_current),
-    .instruction(instruction)
-  );
+  .address(pc_current),
+  .page_select(SW[7:6]),        //SW[7:6] 
+  .instruction(instruction),
+  .memory_out(instruction_display)  
+);
   
   instruction_decoder decoder (
     .instruction(instruction),
@@ -214,7 +218,8 @@ module monocycle (
     .clock(CLOCK_50),
     .sw0(reset),
     .sw1(SW[2]), .sw2(SW[3]), .sw3(SW[4]), .sw4(SW[5]), .sw5(SW[6]),
-    
+    .page_select(SW[7:6]),
+
     // Registros
     .regs_demo(registers),
     .changed_mask(reg_changed_mask),
@@ -235,6 +240,7 @@ module monocycle (
     
     // Memoria
     .memory(memory_display),
+    .instruction_memory(instruction_display),
     
     // VGA outputs
     .vga_red(VGA_R),

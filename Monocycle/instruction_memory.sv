@@ -1,14 +1,50 @@
 module instruction_memory (
   input  logic [31:0] address,
-  output logic [31:0] instruction
+  input  logic [1:0]  page_select,
+  output logic [31:0] instruction,
+  output logic [31:0] memory_out [0:31]
 );
   logic [31:0] memory [0:127];
   
+  // Instrucción normal para ejecución
   assign instruction = memory[address[6:2]];
   
+  // Exponer ventana de 32 instrucciones según la página seleccionada
+  // CORRECCIÓN: Hay que copiar elemento por elemento
+  always_comb begin
+    case (page_select)
+      2'b00: begin
+        for (int i = 0; i < 32; i++) begin
+          memory_out[i] = memory[i];
+        end
+      end
+      2'b01: begin
+        for (int i = 0; i < 32; i++) begin
+          memory_out[i] = memory[32 + i];
+        end
+      end
+      2'b10: begin
+        for (int i = 0; i < 32; i++) begin
+          memory_out[i] = memory[64 + i];
+        end
+      end
+      2'b11: begin
+        for (int i = 0; i < 32; i++) begin
+          memory_out[i] = memory[96 + i];
+        end
+      end
+    endcase
+  end
+  
   initial begin
-    // Cargar desde archivo .hex
+    // Inicializar memoria en cero (buena práctica)
+    for (int i = 0; i < 128; i++) begin
+      memory[i] = 32'h00000000;
+    end
+    
+    // Cargar archivo hex
     $readmemh("instructions.hex", memory);
+    
   end
 
 endmodule
