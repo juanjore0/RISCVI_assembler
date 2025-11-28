@@ -44,14 +44,15 @@ module pipeline (
   logic [4:0]  ID_EX_br_op;
   logic [1:0]  ID_EX_ru_data_src;
   logic        ID_EX_valid;
+  logic [31:0] ID_EX_instruction; // NUEVO
   
-
   // EX/MEM
   logic [31:0] EX_MEM_pc_plus4;
   logic [31:0] EX_MEM_alu_result;
   logic [31:0] EX_MEM_rs2_data;
   logic [31:0] EX_MEM_immediate;
   logic [4:0]  EX_MEM_rd;
+  logic [31:0] EX_MEM_instruction; // NUEVO
   
   // Control signals EX/MEM
   logic        EX_MEM_ru_write;
@@ -66,6 +67,7 @@ module pipeline (
   logic [31:0] MEM_WB_pc_plus4;
   logic [31:0] MEM_WB_immediate;
   logic [4:0]  MEM_WB_rd;
+  logic [31:0] MEM_WB_instruction; // NUEVO
   
   // Control signals MEM/WB
   logic        MEM_WB_ru_write;
@@ -103,12 +105,14 @@ module pipeline (
   end
   
   // Instruction Memory
+  logic [31:0] instruction_display [0:31]; // Declaración adelantada
+
   instruction_memory imem (
-  .address(pc_current),
-  .page_select(SW[7:6]),        //SW[7:6] 
-  .instruction(instruction),
-  .memory_out(instruction_display)  
-);
+    .address(pc_current),
+    .page_select(SW[7:6]),
+    .instruction(instruction),
+    .memory_out(instruction_display)  
+  );
   
   // IF/ID Pipeline Register
   always_ff @(posedge clk) begin
@@ -146,8 +150,6 @@ module pipeline (
   logic [4:0]  br_op;
   logic [1:0]  ru_data_src;
 
-  logic [31:0] instruction_display [0:31];
-
   // Instruction Decoder
   instruction_decoder decoder (
     .instruction(IF_ID_instruction),
@@ -180,7 +182,7 @@ module pipeline (
     .instruction(IF_ID_instruction),
     .imm_src(imm_src),
     .opcode(opcode),
-	 .funct3(funct3),
+    .funct3(funct3),
     .immediate(immediate)
   );
   
@@ -291,6 +293,7 @@ module pipeline (
       ID_EX_br_op <= 5'd0;
       ID_EX_ru_data_src <= 2'd0;
       ID_EX_valid <= 1'b0;
+      ID_EX_instruction <= 32'h00000013; // Reset Instruction
     end else if (!stall_pipeline) begin
       ID_EX_pc <= IF_ID_pc;
       ID_EX_pc_plus4 <= IF_ID_pc_plus4;
@@ -310,6 +313,7 @@ module pipeline (
       ID_EX_br_op <= br_op;
       ID_EX_ru_data_src <= ru_data_src;
       ID_EX_valid <= IF_ID_valid;
+      ID_EX_instruction <= IF_ID_instruction; // Propagar Instrucción
     end
   end
   
@@ -368,6 +372,7 @@ module pipeline (
       EX_MEM_dm_ctrl <= 3'd0;
       EX_MEM_ru_data_src <= 2'd0;
       EX_MEM_valid <= 1'b0;
+      EX_MEM_instruction <= 32'h00000013; // Reset Instruction
     end else begin
       EX_MEM_pc_plus4 <= ID_EX_pc_plus4;
       EX_MEM_alu_result <= alu_result;
@@ -379,6 +384,7 @@ module pipeline (
       EX_MEM_dm_ctrl <= ID_EX_dm_ctrl;
       EX_MEM_ru_data_src <= ID_EX_ru_data_src;
       EX_MEM_valid <= ID_EX_valid;
+      EX_MEM_instruction <= ID_EX_instruction; // Propagar Instrucción
     end
   end
   
@@ -409,6 +415,7 @@ module pipeline (
       MEM_WB_ru_write <= 1'b0;
       MEM_WB_ru_data_src <= 2'd0;
       MEM_WB_valid <= 1'b0;
+      MEM_WB_instruction <= 32'h00000013; // Reset Instruction
     end else begin
       MEM_WB_alu_result <= EX_MEM_alu_result;
       MEM_WB_mem_data <= mem_read_data;
@@ -418,6 +425,7 @@ module pipeline (
       MEM_WB_ru_write <= EX_MEM_ru_write;
       MEM_WB_ru_data_src <= EX_MEM_ru_data_src;
       MEM_WB_valid <= EX_MEM_valid;
+      MEM_WB_instruction <= EX_MEM_instruction; // Propagar Instrucción
     end
   end
   
@@ -445,17 +453,51 @@ module pipeline (
     .sw0(reset),
     .sw1(SW[2]), .sw2(SW[3]), .sw3(SW[4]), .sw4(SW[5]), .sw5(SW[6]),
     .page_select(SW[7:6]),
+    
+    // Entradas existentes
     .regs_demo(registers),
     .changed_mask(reg_changed_mask),
-    .pc_value(pc_current),
-    .instruction(IF_ID_instruction),
+    .pc_value(pc_current),            // PC general (Fetch)
+    .instruction(IF_ID_instruction),  // Instrucción en Decode
     .br_op(br_op),
     .alu_operand_a(alu_operand_a),
     .alu_operand_b(alu_operand_b),
     .alu_result(alu_result),
+    .alu_op(ID_EX_alu_op),
     .immediate(ID_EX_immediate),
     .memory(memory_display),
     .instruction_memory(instruction_display),
+
+    // --- NUEVAS CONEXIONES PARA EL PIPELINE VISUALIZER ---
+    
+    // IF Stage
+    .if_pc(pc_current),
+    .if_instr(instruction),
+    
+    // ID Stage
+    .id_pc(IF_ID_pc),
+    .id_instr(IF_ID_instruction),
+    .id_valid(IF_ID_valid),
+
+    // EX Stage
+    .ex_pc(ID_EX_pc),
+    .ex_instr(ID_EX_instruction),
+    .ex_alu_res(alu_result),
+    .ex_valid(ID_EX_valid),
+
+    // MEM Stage
+    .mem_pc(EX_MEM_pc_plus4 - 4),
+    .mem_instr(EX_MEM_instruction),
+    .mem_data(mem_read_data),
+    .mem_valid(EX_MEM_valid),
+
+    // WB Stage
+    .wb_pc(MEM_WB_pc_plus4 - 4),
+    .wb_instr(MEM_WB_instruction),
+    .wb_data(wb_data),
+    .wb_valid(MEM_WB_valid),
+    // ---------------------------------------------------
+
     .vga_red(VGA_R),
     .vga_green(VGA_G),
     .vga_blue(VGA_B),
@@ -463,7 +505,7 @@ module pipeline (
     .vga_vsync(VGA_VS),
     .vga_clock(VGA_CLK)
   );
-  
+
   // LEDs para debug
   assign LEDR[7:0] = pc_current[7:0];
   assign LEDR[8] = stall_pipeline;
