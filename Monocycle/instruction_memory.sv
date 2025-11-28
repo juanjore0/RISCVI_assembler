@@ -8,9 +8,7 @@ module instruction_memory (
   
   // Instrucción normal para ejecución
   assign instruction = memory[address[6:2]];
-  
-  // Exponer ventana de 32 instrucciones según la página seleccionada
-  // CORRECCIÓN: Hay que copiar elemento por elemento
+
   always_comb begin
     case (page_select)
       2'b00: begin
@@ -37,7 +35,7 @@ module instruction_memory (
   end
   
   initial begin
-    // Inicializar memoria en cero (buena práctica)
+    // Inicializar memoria en cero
     for (int i = 0; i < 128; i++) begin
       memory[i] = 32'h00000000;
     end
