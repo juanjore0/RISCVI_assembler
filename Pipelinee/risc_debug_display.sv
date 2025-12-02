@@ -216,17 +216,17 @@ module risc_debug_display(
     localparam MEM_H = 10 * CHAR_H;
 
     localparam IMEM_X = 10;
-    localparam IMEM_Y = 550; // Ya movido abajo según tu petición anterior
+    localparam IMEM_Y = 550; 
     localparam IMEM_W = 60 * CHAR_W;
     localparam IMEM_H = 10 * CHAR_H;
 
     // ============================================================
     // VENTANA 6: PIPELINE VISUALIZER
     // ============================================================
-    localparam PIPE_X = 650;       // Derecha
+    localparam PIPE_X = 650;      
     localparam PIPE_Y = 10;
     localparam PIPE_W = 35 * CHAR_W;
-    localparam PIPE_H = 45 * CHAR_H; // Alto para lista vertical
+    localparam PIPE_H = 45 * CHAR_H; 
 
     // Lógica de selección de ventana
     logic in_reg_window, in_info_window, in_alu_window, in_mem_window, in_imem_window, in_pipe_window;
@@ -311,30 +311,32 @@ module risc_debug_display(
     assign actual_reg_idx = 5'd31 - reg_idx;
 
     // Char Position Logic
+    // Char Position Logic
     always_comb begin
-        if (in_reg_window) begin 
-            row_in_char = reg_rel_y[3:0]; 
-            col_in_char = reg_rel_x[2:0]; 
-        end else if (in_info_window) begin 
-            row_in_char = info_rel_y[3:0]; 
-            col_in_char = info_rel_x[2:0]; 
-        end else if (in_alu_window) begin 
-            row_in_char = alu_rel_y[3:0]; 
-            col_in_char = alu_rel_x[2:0]; 
-        end else if (in_mem_window) begin 
-            row_in_char = mem_rel_y[3:0]; 
-            col_in_char = mem_rel_x[2:0]; 
-        end else if (in_imem_window) begin 
-            row_in_char = imem_rel_y[3:0]; 
-            col_in_char = imem_rel_x[2:0]; 
-        end else if (in_pipe_window) begin 
-            row_in_char = pipe_rel_y[3:0]; 
-            col_in_char = pipe_rel_x[2:0]; 
-        end else begin 
-            row_in_char = 4'd0; 
-            col_in_char = 3'd0; 
+        if (in_pipe_window) begin  
+            row_in_char = pipe_rel_y[3:0];
+            col_in_char = pipe_rel_x[2:0];
+        end else if (in_reg_window) begin
+            row_in_char = reg_rel_y[3:0];
+            col_in_char = reg_rel_x[2:0];
+        end else if (in_info_window) begin
+            row_in_char = info_rel_y[3:0];
+            col_in_char = info_rel_x[2:0];
+        end else if (in_alu_window) begin
+            row_in_char = alu_rel_y[3:0];
+            col_in_char = alu_rel_x[2:0];
+        end else if (in_mem_window) begin
+            row_in_char = mem_rel_y[3:0];
+            col_in_char = mem_rel_x[2:0];
+        end else if (in_imem_window) begin
+            row_in_char = imem_rel_y[3:0];
+            col_in_char = imem_rel_x[2:0];
+        end else begin
+            row_in_char = 4'd0;
+            col_in_char = 3'd0;
         end
     end
+
     
     // Helper Functions
     function automatic [7:0] to_hex(input [3:0] nib);
@@ -382,6 +384,7 @@ module risc_debug_display(
             end 
             else if (pipe_char_row == 1) ascii_code = "-";
 
+
             // IF STAGE
             else if (pipe_char_row == 3) begin
                case(pipe_char_col) 0: ascii_code="I"; 1: ascii_code="F"; 2: ascii_code=":"; default: ascii_code=" "; endcase
@@ -424,6 +427,7 @@ module risc_debug_display(
                endcase
             end
 
+
             // EX STAGE
             else if (pipe_char_row == 11) begin
                case(pipe_char_col) 0: ascii_code="E"; 1: ascii_code="X"; 2: ascii_code=":"; 
@@ -446,6 +450,7 @@ module risc_debug_display(
                endcase
             end
 
+
             // MEM STAGE
             else if (pipe_char_row == 15) begin
                case(pipe_char_col) 0: ascii_code="M"; 1: ascii_code="E"; 2: ascii_code="M"; 3: ascii_code=":"; default: ascii_code=" "; endcase
@@ -460,6 +465,7 @@ module risc_debug_display(
                    default: ascii_code=" ";
                endcase
             end
+
 
             // WB STAGE
             else if (pipe_char_row == 19) begin
@@ -476,8 +482,8 @@ module risc_debug_display(
                endcase
             end
         end
-
-        // --- OTHER WINDOWS (Copied directly from your code) ---
+        
+        // --- REGISTROS ---
         else if (in_reg_window) begin
             if (reg_char_row == 0) begin
                 if (!reg_column_sel) begin
@@ -512,6 +518,7 @@ module risc_debug_display(
             end
         end
         
+        // --- INFO ---
         else if (in_info_window) begin
             case (info_char_row)
                 5'd0: begin
@@ -581,6 +588,7 @@ module risc_debug_display(
             endcase
         end
 
+        // --- ALU ---
         else if (in_alu_window) begin
             case (alu_char_row)
                 5'd0: begin
@@ -654,6 +662,7 @@ module risc_debug_display(
             endcase
         end
 
+        // --- MEMORIA ---
         else if (in_mem_window) begin
             if (mem_char_row == 0) begin
                 case (mem_char_col)
@@ -689,6 +698,7 @@ module risc_debug_display(
             end
         end
 
+        // --- INSTRUCCIÓN MEMORIA ---
         else if (in_imem_window) begin
             if (imem_char_row == 0) begin
                 case (imem_char_col)
