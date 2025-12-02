@@ -1,111 +1,86 @@
 ###############################################
-#   PROGRAMA RISC-V CON FUNCIONES Y SHIFTS
-#   Calcula promedio y clasifica números
+#   PROGRAMA RISC-V - CÁLCULO DE FACTORIAL
+#   Calcula n! de forma iterativa
 ###############################################
 
 main:
     # Inicializar valores
-    addi x10, x0, 16       # x10 = 16 (primer número)
-    addi x11, x0, -8       # x11 = -8 (segundo número)
-    addi x12, x0, 24       # x12 = 24 (tercer número)
+    addi x10, x0, 5        # x10 = 5 (calcular 5!)
+    addi x11, x0, 7        # x11 = 7 (calcular 7!)
+    addi x12, x0, 0        # x12 = 0 (calcular 0!)
     
-    # Llamar a función promedio
-    jal x1, promedio       # Calcula promedio, resultado en x13
+    # Calcular factorial de x10 (5! = 120)
+    add x28, x10, x0       # Argumento: n = 5
+    jal x1, factorial      # Resultado en x29
+    add x13, x29, x0       # Guardar en x13
     
-    # Clasificar el resultado
-    jal x1, clasificar     # Clasifica según rango
+    # Calcular factorial de x11 (7! = 5040)
+    add x28, x11, x0       # Argumento: n = 7
+    jal x1, factorial      # Resultado en x29
+    add x14, x29, x0       # Guardar en x14
     
-    # Probar shifts aritméticos
-    jal x1, test_shifts
+    # Calcular factorial de x12 (0! = 1)
+    add x28, x12, x0       # Argumento: n = 0
+    jal x1, factorial      # Resultado en x29
+    add x15, x29, x0       # Guardar en x15
     
     # Terminar programa
     jal x0, fin
 
-###############################################
-# FUNCIÓN: promedio
-# Calcula (x10 + x11 + x12) / 4
-# Entrada: x10, x11, x12
-# Salida: x13 (promedio)
-###############################################
-promedio:
-    add x13, x10, x11      # x13 = x10 + x11
-    add x13, x13, x12      # x13 = x13 + x12
-    srai x13, x13, 2       # x13 = x13 >> 2 (dividir por 4, aritmético)
-    jalr x0, x1, 0         # Retornar
 
 ###############################################
-# FUNCIÓN: clasificar
-# Clasifica x13 en rangos
-# Si x13 < 0  → x14 = 1 (negativo)
-# Si x13 < 10 → x14 = 2 (pequeño)
-# Si x13 >= 10 → x14 = 3 (grande)
+# FUNCIÓN: factorial
+# Calcula n! de forma iterativa
+# Entrada: x28 (n)
+# Salida: x29 (resultado n!)
 ###############################################
-clasificar:
-    # Verificar si es negativo
-    slti x15, x13, 0       # x15 = 1 si x13 < 0
-    bne x15, x0, es_negativo
+factorial:
+    # Verificar casos base (0! = 1, 1! = 1)
+    slti x30, x28, 2       # x30 = 1 si n < 2
+    bne x30, x0, fact_base # Si n < 2, retornar 1
     
-    # Verificar si es pequeño
-    slti x15, x13, 10      # x15 = 1 si x13 < 10
-    bne x15, x0, es_pequeno
+    # Inicializar
+    addi x31, x0, 1        # x31 = 1 (acumulador)
+    addi x30, x0, 2        # x30 = 2 (contador)
     
-    # Es grande
-    addi x14, x0, 3        # x14 = 3 (grande)
+fact_loop:
+    # Multiplicar: x31 * x30
+    add x29, x0, x0        # x29 = 0 (resultado)
+    add x6, x0, x0         # x6 = 0 (índice)
+    
+mult_loop:
+    beq x6, x30, mult_done # Si terminó, salir
+    add x29, x29, x31      # x29 += x31
+    addi x6, x6, 1         # x6++
+    jal x0, mult_loop
+    
+mult_done:
+    add x31, x29, x0       # Actualizar acumulador
+    addi x30, x30, 1       # Incrementar contador
+    slt x6, x28, x30       # Verificar si terminamos
+    beq x6, x0, fact_loop  # Continuar si falta
+    
+    add x29, x31, x0       # Resultado final
     jalr x0, x1, 0         # Retornar
     
-es_negativo:
-    addi x14, x0, 1        # x14 = 1 (negativo)
-    jalr x0, x1, 0         # Retornar
-    
-es_pequeno:
-    addi x14, x0, 2        # x14 = 2 (pequeño)
-    jalr x0, x1, 0         # Retornar
+fact_base:
+    addi x29, x0, 1        # Retornar 1
+    jalr x0, x1, 0
 
-###############################################
-# FUNCIÓN: test_shifts
-# Prueba diferentes tipos de shifts
-# Entrada: usa x10 (16) y x11 (-8)
-###############################################
-test_shifts:
-    # Shifts con número positivo (x10 = 16)
-    slli x20, x10, 1       # x20 = 16 << 1 = 32
-    srli x21, x10, 2       # x21 = 16 >> 2 = 4 (lógico)
-    srai x22, x10, 2       # x22 = 16 >> 2 = 4 (aritmético)
-    
-    # Shifts con número negativo (x11 = -8)
-    srli x23, x11, 1       # x23 = 0xFFFFFFF8 >> 1 = 0x7FFFFFFC (lógico)
-    srai x24, x11, 1       # x24 = -8 >> 1 = -4 (aritmético)
-    
-    # Comparaciones unsigned vs signed
-    slt x25, x11, x10      # x25 = 1 (-8 < 16, con signo)
-    sltu x26, x11, x10     # x26 = 0 (0xFFFFFFF8 > 16, sin signo)
-    
-    # Comparaciones con inmediatos
-    slti x27, x10, 20      # x27 = 1 (16 < 20)
- 
-    jalr x0, x1, 0         # Retornar
 
 ###############################################
 # FIN: Loop infinito
 ###############################################
 fin:
-    beq x0, x0, fin        # Loop infinito
+    beq x0, x0, fin
 
 
 ###############################################
-# VALORES ESPERADOS AL FINAL:
-# x10 = 16
-# x11 = -8 (0xFFFFFFF8)
-# x12 = 24
-# x13 = 8 (promedio: (16-8+24)/4 = 32/4 = 8)
-# x14 = 2 (clasificación: pequeño, porque 8 < 10)
-# x20 = 32 (16 << 1)
-# x21 = 4 (16 >> 2 lógico)
-# x22 = 4 (16 >> 2 aritmético)
-# x23 = 0x7FFFFFFC (shift lógico de negativo)
-# x24 = -4 (0xFFFFFFFC) (shift aritmético de negativo)
-# x25 = 1 (comparación con signo)
-# x26 = 0 (comparación sin signo)
-# x27 = 1 (16 < 20)
-# x28 = 0 (0xFFFFFFF8 > 5 sin signo)
+# VALORES ESPERADOS:
+# x10 = 5
+# x11 = 7  
+# x12 = 0
+# x13 = 120    (5!)
+# x14 = 5040   (7!)
+# x15 = 1      (0!)
 ###############################################

@@ -193,7 +193,6 @@ module risc_debug_display(
     localparam CHAR_W = 8;
     localparam CHAR_H = 16;
     
-    // ... (Ventanas existentes REG, INFO, ALU, MEM, IMEM se mantienen igual) ...
     localparam REG_X = 10;
     localparam REG_Y = 10;
     localparam REG_COL_WIDTH = 21;
@@ -216,20 +215,23 @@ module risc_debug_display(
     localparam MEM_H = 10 * CHAR_H;
 
     localparam IMEM_X = 10;
-    localparam IMEM_Y = 550; 
+    localparam IMEM_Y = 485; 
     localparam IMEM_W = 60 * CHAR_W;
     localparam IMEM_H = 10 * CHAR_H;
 
-    // ============================================================
-    // VENTANA 6: PIPELINE VISUALIZER
-    // ============================================================
     localparam PIPE_X = 650;      
     localparam PIPE_Y = 10;
     localparam PIPE_W = 35 * CHAR_W;
-    localparam PIPE_H = 45 * CHAR_H; 
+    localparam PIPE_H = 32 * CHAR_H; 
+
+    localparam FOOTER_X = 650;          
+    localparam FOOTER_Y = 522;          
+    localparam FOOTER_W = 40 * CHAR_W;  
+    localparam FOOTER_H = 7 * CHAR_H;   
+
 
     // Lógica de selección de ventana
-    logic in_reg_window, in_info_window, in_alu_window, in_mem_window, in_imem_window, in_pipe_window;
+    logic in_reg_window, in_info_window, in_alu_window, in_mem_window, in_imem_window, in_pipe_window, in_footer_window;
     
     // ... (Assignments de ventanas existentes) ...
     assign in_reg_window = (x >= REG_X && x < REG_X + REG_W && y >= REG_Y && y < REG_Y + REG_H);
@@ -237,7 +239,16 @@ module risc_debug_display(
     assign in_alu_window = (x >= ALU_X && x < ALU_X + ALU_W && y >= ALU_Y && y < ALU_Y + ALU_H);
     assign in_mem_window = (x >= MEM_X && x < MEM_X + MEM_W && y >= MEM_Y && y < MEM_Y + MEM_H);
     assign in_imem_window = (x >= IMEM_X && x < IMEM_X + IMEM_W && y >= IMEM_Y && y < IMEM_Y + IMEM_H);
-    
+    assign in_footer_window = (x >= FOOTER_X && x < FOOTER_X + FOOTER_W && y >= FOOTER_Y && y < FOOTER_Y + FOOTER_H);
+
+    // footer window
+    logic [10:0] footer_rel_x; logic [9:0] footer_rel_y;
+    logic [5:0] footer_char_col; logic [3:0] footer_char_row;  // Solo necesitas 3 bits para 7 filas (0-6)
+    assign footer_rel_x = in_footer_window ? (x - FOOTER_X) : 11'd0;
+    assign footer_rel_y = in_footer_window ? (y - FOOTER_Y) : 10'd0;
+    assign footer_char_col = footer_rel_x / CHAR_W;
+    assign footer_char_row = footer_rel_y / CHAR_H;
+
     // Pipeline Window logic
     logic [10:0] pipe_rel_x; logic [9:0] pipe_rel_y;
     logic [5:0] pipe_char_col; logic [4:0] pipe_char_row;
@@ -277,7 +288,7 @@ module risc_debug_display(
     assign imem_char_col = imem_rel_x / CHAR_W;
     assign imem_char_row = imem_rel_y / CHAR_H;
 
-    // Variables auxiliares para visualización (copiadas de tu código anterior)
+    // Variables auxiliares para visualización
     logic [5:0] mem_display_idx; logic [1:0] mem_column; logic [3:0] mem_row_offset; logic [3:0] mem_col_pos;
     logic [5:0] imem_display_idx; logic [1:0] imem_column; logic [3:0] imem_row_offset; logic [3:0] imem_col_pos;
     logic reg_column_sel; logic [5:0] reg_local_col; logic [4:0] reg_idx; logic [4:0] actual_reg_idx;
@@ -311,9 +322,11 @@ module risc_debug_display(
     assign actual_reg_idx = 5'd31 - reg_idx;
 
     // Char Position Logic
-    // Char Position Logic
     always_comb begin
-        if (in_pipe_window) begin  
+        if (in_footer_window) begin
+            row_in_char = footer_rel_y[3:0];
+            col_in_char = footer_rel_x[2:0];
+        end else if (in_pipe_window) begin  
             row_in_char = pipe_rel_y[3:0];
             col_in_char = pipe_rel_x[2:0];
         end else if (in_reg_window) begin
@@ -374,115 +387,304 @@ module risc_debug_display(
 
         // --- PIPELINE WINDOW ---
         if (in_pipe_window) begin
-            // Título
+            // ========== TÍTULO ==========
             if (pipe_char_row == 0) begin
-               case(pipe_char_col)
-                   0: ascii_code="P"; 1: ascii_code="I"; 2: ascii_code="P"; 3: ascii_code="E"; 
-                   4: ascii_code="L"; 5: ascii_code="I"; 6: ascii_code="N"; 7: ascii_code="E";
-                   default: ascii_code=" ";
-               endcase
+                case(pipe_char_col)
+                    0: ascii_code="P"; 1: ascii_code="I"; 2: ascii_code="P"; 3: ascii_code="E"; 
+                    4: ascii_code="L"; 5: ascii_code="I"; 6: ascii_code="N"; 7: ascii_code="E";
+                    default: ascii_code=" ";
+                endcase
             end 
-            else if (pipe_char_row == 1) ascii_code = "-";
+            else if (pipe_char_row == 1) begin
+                if (pipe_char_col < 30) ascii_code = 8'd45;
+                else ascii_code = " ";
+            end
 
-
-            // IF STAGE
+            // ========== IF STAGE ==========
             else if (pipe_char_row == 3) begin
-               case(pipe_char_col) 0: ascii_code="I"; 1: ascii_code="F"; 2: ascii_code=":"; default: ascii_code=" "; endcase
+                case(pipe_char_col) 
+                    0: ascii_code="I"; 1: ascii_code="F"; 2: ascii_code=":"; 
+                    default: ascii_code=" "; 
+                endcase
             end
             else if (pipe_char_row == 4) begin
-               case(pipe_char_col)
-                   1: ascii_code="P"; 2: ascii_code="C"; 3: ascii_code=":";
-                   5: ascii_code=to_hex(if_pc_v[15:12]); 6: ascii_code=to_hex(if_pc_v[11:8]); 
-                   7: ascii_code=to_hex(if_pc_v[7:4]); 8: ascii_code=to_hex(if_pc_v[3:0]);
-                   11: ascii_code="I"; 12: ascii_code=":";
-                   14: ascii_code=to_hex(if_instr_v[31:28]); 15: ascii_code=to_hex(if_instr_v[27:24]);
-                   16: ascii_code=to_hex(if_instr_v[23:20]); 17: ascii_code=to_hex(if_instr_v[19:16]);
-                   18: ascii_code=to_hex(if_instr_v[15:12]); 19: ascii_code=to_hex(if_instr_v[11:8]);
-                   20: ascii_code=to_hex(if_instr_v[7:4]); 21: ascii_code=to_hex(if_instr_v[3:0]);
-                   default: ascii_code=" ";
-               endcase
+                if (pipe_char_col < 15) ascii_code = 8'd45;
+                else ascii_code = " ";
             end
-            
-            // ID STAGE
-            else if (pipe_char_row == 7) begin
-               case(pipe_char_col) 0: ascii_code="I"; 1: ascii_code="D"; 2: ascii_code=":"; 
-                                   4: ascii_code = id_valid_v ? " " : "S"; // STALL indicator
-                                   5: ascii_code = id_valid_v ? " " : "T";
-                                   6: ascii_code = id_valid_v ? " " : "A";
-                                   7: ascii_code = id_valid_v ? " " : "L";
-                                   8: ascii_code = id_valid_v ? " " : "L";
-                                   default: ascii_code=" "; endcase
+            else if (pipe_char_row == 5) begin
+                case(pipe_char_col)
+                    0: ascii_code="P"; 1: ascii_code="C"; 2: ascii_code=":";
+                    4: ascii_code=to_hex(if_pc_v[15:12]); 
+                    5: ascii_code=to_hex(if_pc_v[11:8]); 
+                    6: ascii_code=to_hex(if_pc_v[7:4]); 
+                    7: ascii_code=to_hex(if_pc_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
             end
-            else if (pipe_char_row == 8) begin
-               case(pipe_char_col)
-                   1: ascii_code="P"; 2: ascii_code="C"; 3: ascii_code=":";
-                   5: ascii_code=to_hex(id_pc_v[15:12]); 6: ascii_code=to_hex(id_pc_v[11:8]); 
-                   7: ascii_code=to_hex(id_pc_v[7:4]); 8: ascii_code=to_hex(id_pc_v[3:0]);
-                   11: ascii_code="I"; 12: ascii_code=":";
-                   14: ascii_code=to_hex(id_instr_v[31:28]); 15: ascii_code=to_hex(id_instr_v[27:24]);
-                   16: ascii_code=to_hex(id_instr_v[23:20]); 17: ascii_code=to_hex(id_instr_v[19:16]);
-                   18: ascii_code=to_hex(id_instr_v[15:12]); 19: ascii_code=to_hex(id_instr_v[11:8]);
-                   20: ascii_code=to_hex(id_instr_v[7:4]); 21: ascii_code=to_hex(id_instr_v[3:0]);
-                   default: ascii_code=" ";
-               endcase
+            else if (pipe_char_row == 6) begin
+                case(pipe_char_col)
+                    0: ascii_code="I"; 1: ascii_code=":";
+                    3: ascii_code=to_hex(if_instr_v[31:28]); 
+                    4: ascii_code=to_hex(if_instr_v[27:24]);
+                    5: ascii_code=to_hex(if_instr_v[23:20]); 
+                    6: ascii_code=to_hex(if_instr_v[19:16]);
+                    7: ascii_code=to_hex(if_instr_v[15:12]); 
+                    8: ascii_code=to_hex(if_instr_v[11:8]);
+                    9: ascii_code=to_hex(if_instr_v[7:4]); 
+                    10: ascii_code=to_hex(if_instr_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
             end
-
-
-            // EX STAGE
+        
+            // ========== ID STAGE ==========
+            else if (pipe_char_row == 9) begin
+                case(pipe_char_col) 
+                    0: ascii_code="I"; 1: ascii_code="D"; 2: ascii_code=":"; 
+                    4: ascii_code = id_valid_v ? " " : "[";
+                    5: ascii_code = id_valid_v ? " " : "S";
+                    6: ascii_code = id_valid_v ? " " : "T";
+                    7: ascii_code = id_valid_v ? " " : "A";
+                    8: ascii_code = id_valid_v ? " " : "L";
+                    9: ascii_code = id_valid_v ? " " : "L";
+                    10: ascii_code = id_valid_v ? " " : "]";
+                    default: ascii_code=" "; 
+                endcase
+            end
+            else if (pipe_char_row == 10) begin
+                if (pipe_char_col < 15) ascii_code = 8'd45;
+                else ascii_code = " ";
+            end
             else if (pipe_char_row == 11) begin
-               case(pipe_char_col) 0: ascii_code="E"; 1: ascii_code="X"; 2: ascii_code=":"; 
-                                   4: ascii_code = ex_valid_v ? " " : "B"; // BUBBLE indicator
-                                   5: ascii_code = ex_valid_v ? " " : "U";
-                                   6: ascii_code = ex_valid_v ? " " : "B";
-                                   default: ascii_code=" "; endcase
+                case(pipe_char_col)
+                    0: ascii_code="P"; 1: ascii_code="C"; 2: ascii_code=":";
+                    4: ascii_code=to_hex(id_pc_v[15:12]); 
+                    5: ascii_code=to_hex(id_pc_v[11:8]); 
+                    6: ascii_code=to_hex(id_pc_v[7:4]); 
+                    7: ascii_code=to_hex(id_pc_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
             end
             else if (pipe_char_row == 12) begin
-               case(pipe_char_col)
-                   1: ascii_code="P"; 2: ascii_code="C"; 3: ascii_code=":";
-                   5: ascii_code=to_hex(ex_pc_v[15:12]); 6: ascii_code=to_hex(ex_pc_v[11:8]); 
-                   7: ascii_code=to_hex(ex_pc_v[7:4]); 8: ascii_code=to_hex(ex_pc_v[3:0]);
-                   11: ascii_code="R"; 12: ascii_code="E"; 13: ascii_code="S"; 14: ascii_code=":";
-                   16: ascii_code=to_hex(ex_alu_res_v[31:28]); 17: ascii_code=to_hex(ex_alu_res_v[27:24]);
-                   18: ascii_code=to_hex(ex_alu_res_v[23:20]); 19: ascii_code=to_hex(ex_alu_res_v[19:16]);
-                   20: ascii_code=to_hex(ex_alu_res_v[15:12]); 21: ascii_code=to_hex(ex_alu_res_v[11:8]);
-                   22: ascii_code=to_hex(ex_alu_res_v[7:4]); 23: ascii_code=to_hex(ex_alu_res_v[3:0]);
-                   default: ascii_code=" ";
-               endcase
+                case(pipe_char_col)
+                    0: ascii_code="I"; 1: ascii_code=":";
+                    3: ascii_code=to_hex(id_instr_v[31:28]); 
+                    4: ascii_code=to_hex(id_instr_v[27:24]);
+                    5: ascii_code=to_hex(id_instr_v[23:20]); 
+                    6: ascii_code=to_hex(id_instr_v[19:16]);
+                    7: ascii_code=to_hex(id_instr_v[15:12]); 
+                    8: ascii_code=to_hex(id_instr_v[11:8]);
+                    9: ascii_code=to_hex(id_instr_v[7:4]); 
+                    10: ascii_code=to_hex(id_instr_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
             end
-
-
-            // MEM STAGE
+            
+            // ========== EX STAGE ==========
             else if (pipe_char_row == 15) begin
-               case(pipe_char_col) 0: ascii_code="M"; 1: ascii_code="E"; 2: ascii_code="M"; 3: ascii_code=":"; default: ascii_code=" "; endcase
+                case(pipe_char_col) 
+                    0: ascii_code="E"; 1: ascii_code="X"; 2: ascii_code=":"; 
+                    4: ascii_code = ex_valid_v ? " " : "[";
+                    5: ascii_code = ex_valid_v ? " " : "B";
+                    6: ascii_code = ex_valid_v ? " " : "U";
+                    7: ascii_code = ex_valid_v ? " " : "B";
+                    8: ascii_code = ex_valid_v ? " " : "]";
+                    default: ascii_code=" "; 
+                endcase
             end
             else if (pipe_char_row == 16) begin
-               case(pipe_char_col)
-                   1: ascii_code="D"; 2: ascii_code="A"; 3: ascii_code="T"; 4: ascii_code=":";
-                   6: ascii_code=to_hex(mem_data_v[31:28]); 7: ascii_code=to_hex(mem_data_v[27:24]);
-                   8: ascii_code=to_hex(mem_data_v[23:20]); 9: ascii_code=to_hex(mem_data_v[19:16]);
-                   10: ascii_code=to_hex(mem_data_v[15:12]); 11: ascii_code=to_hex(mem_data_v[11:8]);
-                   12: ascii_code=to_hex(mem_data_v[7:4]); 13: ascii_code=to_hex(mem_data_v[3:0]);
-                   default: ascii_code=" ";
-               endcase
+                if (pipe_char_col < 15) ascii_code = 8'd45;
+                else ascii_code = " ";
+            end
+            else if (pipe_char_row == 17) begin
+                case(pipe_char_col)
+                    0: ascii_code="P"; 1: ascii_code="C"; 2: ascii_code=":";
+                    4: ascii_code=to_hex(ex_pc_v[15:12]); 
+                    5: ascii_code=to_hex(ex_pc_v[11:8]); 
+                    6: ascii_code=to_hex(ex_pc_v[7:4]); 
+                    7: ascii_code=to_hex(ex_pc_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
+            end
+            else if (pipe_char_row == 18) begin
+                case(pipe_char_col)
+                    0: ascii_code="R"; 1: ascii_code="E"; 2: ascii_code="S"; 3: ascii_code=":";
+                    5: ascii_code=to_hex(ex_alu_res_v[31:28]); 
+                    6: ascii_code=to_hex(ex_alu_res_v[27:24]);
+                    7: ascii_code=to_hex(ex_alu_res_v[23:20]); 
+                    8: ascii_code=to_hex(ex_alu_res_v[19:16]);
+                    9: ascii_code=to_hex(ex_alu_res_v[15:12]); 
+                    10: ascii_code=to_hex(ex_alu_res_v[11:8]);
+                    11: ascii_code=to_hex(ex_alu_res_v[7:4]); 
+                    12: ascii_code=to_hex(ex_alu_res_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
+            end
+        
+            // ========== MEM STAGE ==========
+            else if (pipe_char_row == 21) begin
+                case(pipe_char_col) 
+                    0: ascii_code="M"; 1: ascii_code="E"; 2: ascii_code="M"; 3: ascii_code=":"; 
+                    5: ascii_code = mem_valid_v ? " " : "[";
+                    6: ascii_code = mem_valid_v ? " " : "B";
+                    7: ascii_code = mem_valid_v ? " " : "U";
+                    8: ascii_code = mem_valid_v ? " " : "B";
+                    9: ascii_code = mem_valid_v ? " " : "]";
+                    default: ascii_code=" "; 
+                endcase
+            end
+            else if (pipe_char_row == 22) begin
+                if (pipe_char_col < 15) ascii_code = 8'd45;
+                else ascii_code = " ";
+            end
+            else if (pipe_char_row == 23) begin
+                case(pipe_char_col)
+                    0: ascii_code="P"; 1: ascii_code="C"; 2: ascii_code=":";
+                    4: ascii_code=to_hex(mem_pc_v[15:12]); 
+                    5: ascii_code=to_hex(mem_pc_v[11:8]); 
+                    6: ascii_code=to_hex(mem_pc_v[7:4]); 
+                    7: ascii_code=to_hex(mem_pc_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
+            end
+            else if (pipe_char_row == 24) begin
+                case(pipe_char_col)
+                    0: ascii_code="D"; 1: ascii_code="A"; 2: ascii_code="T"; 3: ascii_code=":";
+                    5: ascii_code=to_hex(mem_data_v[31:28]); 
+                    6: ascii_code=to_hex(mem_data_v[27:24]);
+                    7: ascii_code=to_hex(mem_data_v[23:20]); 
+                    8: ascii_code=to_hex(mem_data_v[19:16]);
+                    9: ascii_code=to_hex(mem_data_v[15:12]); 
+                    10: ascii_code=to_hex(mem_data_v[11:8]);
+                    11: ascii_code=to_hex(mem_data_v[7:4]); 
+                    12: ascii_code=to_hex(mem_data_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
             end
 
-
-            // WB STAGE
-            else if (pipe_char_row == 19) begin
-               case(pipe_char_col) 0: ascii_code="W"; 1: ascii_code="B"; 2: ascii_code=":"; default: ascii_code=" "; endcase
+            // ========== WB STAGE ==========
+            else if (pipe_char_row == 27) begin
+                case(pipe_char_col) 
+                    0: ascii_code="W"; 1: ascii_code="B"; 2: ascii_code=":"; 
+                    4: ascii_code = wb_valid_v ? " " : "[";
+                    5: ascii_code = wb_valid_v ? " " : "B";
+                    6: ascii_code = wb_valid_v ? " " : "U";
+                    7: ascii_code = wb_valid_v ? " " : "B";
+                    8: ascii_code = wb_valid_v ? " " : "]";
+                    default: ascii_code=" "; 
+                endcase
             end
-            else if (pipe_char_row == 20) begin
-               case(pipe_char_col)
-                   1: ascii_code="W"; 2: ascii_code="D"; 3: ascii_code=":";
-                   5: ascii_code=to_hex(wb_data_v[31:28]); 6: ascii_code=to_hex(wb_data_v[27:24]);
-                   7: ascii_code=to_hex(wb_data_v[23:20]); 8: ascii_code=to_hex(wb_data_v[19:16]);
-                   9: ascii_code=to_hex(wb_data_v[15:12]); 10: ascii_code=to_hex(wb_data_v[11:8]);
-                   11: ascii_code=to_hex(wb_data_v[7:4]); 12: ascii_code=to_hex(wb_data_v[3:0]);
-                   default: ascii_code=" ";
-               endcase
+            else if (pipe_char_row == 28) begin
+                if (pipe_char_col < 15) ascii_code = 8'd45;
+                else ascii_code = " ";
+            end
+            else if (pipe_char_row == 29) begin
+                case(pipe_char_col)
+                    0: ascii_code="P"; 1: ascii_code="C"; 2: ascii_code=":";
+                    4: ascii_code=to_hex(wb_pc_v[15:12]); 
+                    5: ascii_code=to_hex(wb_pc_v[11:8]); 
+                    6: ascii_code=to_hex(wb_pc_v[7:4]); 
+                    7: ascii_code=to_hex(wb_pc_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
+            end
+            else if (pipe_char_row == 30) begin
+                case(pipe_char_col)
+                    0: ascii_code="W"; 1: ascii_code="D"; 2: ascii_code=":";
+                    4: ascii_code=to_hex(wb_data_v[31:28]); 
+                    5: ascii_code=to_hex(wb_data_v[27:24]);
+                    6: ascii_code=to_hex(wb_data_v[23:20]); 
+                    7: ascii_code=to_hex(wb_data_v[19:16]);
+                    8: ascii_code=to_hex(wb_data_v[15:12]); 
+                    9: ascii_code=to_hex(wb_data_v[11:8]);
+                    10: ascii_code=to_hex(wb_data_v[7:4]); 
+                    11: ascii_code=to_hex(wb_data_v[3:0]);
+                    default: ascii_code=" ";
+                endcase
+            end
+            else begin
+                ascii_code = " ";
             end
         end
         
+        // --- FOOTER ---
+        else if (in_footer_window) begin
+            // Fila 0: ARQUITECTURA DE COMPUTADORES - 2025
+            if (footer_char_row == 0) begin
+                case(footer_char_col)
+                    0: ascii_code="A"; 1: ascii_code="R"; 2: ascii_code="Q"; 3: ascii_code="U"; 
+                    4: ascii_code="I"; 5: ascii_code="T"; 6: ascii_code="E"; 7: ascii_code="C"; 
+                    8: ascii_code="T"; 9: ascii_code="U"; 10: ascii_code="R"; 11: ascii_code="A";
+                    13: ascii_code="D"; 14: ascii_code="E"; 
+                    16: ascii_code="C"; 17: ascii_code="O"; 18: ascii_code="M"; 19: ascii_code="P"; 
+                    20: ascii_code="U"; 21: ascii_code="T"; 22: ascii_code="A"; 23: ascii_code="D"; 
+                    24: ascii_code="O"; 25: ascii_code="R"; 26: ascii_code="E"; 27: ascii_code="S";
+                    29: ascii_code="-"; 
+                    31: ascii_code="2"; 32: ascii_code="0"; 33: ascii_code="2"; 34: ascii_code="5";
+                    default: ascii_code=" ";
+                endcase
+            end
+            // Fila 1: Línea separadora
+            else if (footer_char_row == 1) begin
+                if (footer_char_col < 35) ascii_code = 8'd95;
+                else ascii_code = " ";
+            end
+            // Fila 2: PRESENTADO A: GUSTAVO ADOLFO GUTIERREZ
+            else if (footer_char_row == 2) begin
+                case(footer_char_col)
+                    0: ascii_code="P"; 1: ascii_code="R"; 2: ascii_code="E"; 3: ascii_code="S"; 
+                    4: ascii_code="E"; 5: ascii_code="N"; 6: ascii_code="T"; 7: ascii_code="A"; 
+                    8: ascii_code="D"; 9: ascii_code="O"; 
+                    11: ascii_code="A"; 12: ascii_code=":";
+                    14: ascii_code="G"; 15: ascii_code="U"; 16: ascii_code="S"; 17: ascii_code="T"; 
+                    18: ascii_code="A"; 19: ascii_code="V"; 20: ascii_code="O";
+                    22: ascii_code="A"; 23: ascii_code="D"; 24: ascii_code="O"; 25: ascii_code="L"; 
+                    26: ascii_code="F"; 27: ascii_code="O";
+                    29: ascii_code="G"; 30: ascii_code="U"; 31: ascii_code="T"; 32: ascii_code="I"; 
+                    33: ascii_code="E"; 34: ascii_code="R"; 35: ascii_code="R"; 36: ascii_code="E"; 
+                    37: ascii_code="Z";
+                    default: ascii_code=" ";
+                endcase
+            end
+            // Fila 3: Línea separadora
+            else if (footer_char_row == 3) begin
+                if (footer_char_col < 38) ascii_code = 8'd95;
+                else ascii_code = " ";
+            end
+            // Fila 4: PRESENTADO POR:
+            else if (footer_char_row == 4) begin
+                case(footer_char_col)
+                    0: ascii_code="P"; 1: ascii_code="R"; 2: ascii_code="E"; 3: ascii_code="S"; 
+                    4: ascii_code="E"; 5: ascii_code="N"; 6: ascii_code="T"; 7: ascii_code="A"; 
+                    8: ascii_code="D"; 9: ascii_code="O"; 
+                    11: ascii_code="P"; 12: ascii_code="O"; 13: ascii_code="R"; 14: ascii_code=":";
+                    default: ascii_code=" ";
+                endcase
+            end
+            // Fila 5: VALERIA MUNOZ
+            else if (footer_char_row == 5) begin
+                case(footer_char_col)
+                    0: ascii_code="V"; 1: ascii_code="A"; 2: ascii_code="L"; 3: ascii_code="E"; 
+                    4: ascii_code="R"; 5: ascii_code="I"; 6: ascii_code="A";
+                    8: ascii_code="M"; 9: ascii_code="U"; 10: ascii_code="N"; 11: ascii_code="O"; 
+                    12: ascii_code="Z";
+                    default: ascii_code=" ";
+                endcase
+            end
+            // Fila 6: JUAN JOSE ARANGO
+            else if (footer_char_row == 6) begin
+                case(footer_char_col)
+                    0: ascii_code="J"; 1: ascii_code="U"; 2: ascii_code="A"; 3: ascii_code="N";
+                    5: ascii_code="J"; 6: ascii_code="O"; 7: ascii_code="S"; 8: ascii_code="E";
+                    10: ascii_code="A"; 11: ascii_code="R"; 12: ascii_code="A"; 13: ascii_code="N"; 
+                    14: ascii_code="G"; 15: ascii_code="O";
+                    default: ascii_code=" ";
+                endcase
+            end
+            else begin
+                ascii_code = " ";
+            end
+        end
+
         // --- REGISTROS ---
         else if (in_reg_window) begin
             if (reg_char_row == 0) begin
@@ -756,17 +958,19 @@ module risc_debug_display(
     // Colores
     // ============================================================
     always_comb begin
-        if (~videoOn) begin
-            {vga_red, vga_green, vga_blue} = 24'h000000;
-        end else if (pixel_on) begin
-            if (is_ebreak && in_info_window && info_char_col >= 15 && info_char_col <= 22) begin
-                {vga_red, vga_green, vga_blue} = 24'hFF0000;
-            end else begin
-                {vga_red, vga_green, vga_blue} = 24'hFFFFFF; // Todo BLANCO por defecto
-            end
-        end else begin
-            {vga_red, vga_green, vga_blue} = 24'h000000;
-        end
-    end
+		if (~videoOn) begin
+		   {vga_red, vga_green, vga_blue} = 24'h000000;
+		end else if (pixel_on) begin
+			// Solo [HALTED] en rojo, resto en blanco
+		    if (is_ebreak && in_info_window && info_char_row == 0 && 
+    		 	info_char_col >= 15 && info_char_col <= 22) begin
+					{vga_red, vga_green, vga_blue} = 24'hFF0000;  // Rojo solo para [HALTED]
+			    end else begin
+				 	{vga_red, vga_green, vga_blue} = 24'hFFFFFF;  // Blanco para todo lo demás
+			    end
+		end else begin
+			{vga_red, vga_green, vga_blue} = 24'h000000;
+		end
+	end
 
 endmodule
