@@ -17,7 +17,7 @@ module pipeline (
 );
 
   logic clk, reset;
-  assign clk = ~KEY[0];
+  assign clk = SW[0] ? CLOCK_50 : ~KEY[0]; // SW[0]: 1=reloj placa, 0=reloj manual
   assign reset = ~KEY[1];
   
   // ============================================================
