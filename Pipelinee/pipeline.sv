@@ -1,7 +1,7 @@
 // ============================================================
 // pipeline_riscv.sv - Procesador RISC-V con Pipeline FUNCIONAL
 // IF -> ID -> EX -> MEM -> WB
-// Con Forwarding, Hazard Detection y Branch Handling
+// Con Forwarding, Hazard Detection, Branch Handling y HALT
 // ============================================================
 
 module pipeline (
@@ -17,8 +17,36 @@ module pipeline (
 );
 
   logic clk, reset;
-  assign clk = ~KEY[0];  // Usar reloj de 50MHz
-  assign reset = ~KEY[1]; // Reset activo en bajo (botón presionado = 0)
+  assign clk = ~KEY[0];
+  assign reset = ~KEY[1];
+  
+  // ============================================================
+  // SEÑAL DE HALT (DETECCIÓN DE EBREAK)
+  // ============================================================
+  logic halt_detected;
+  logic [4:0] br_op_display;  // Para el display
+  
+  // EBREAK = 0x00100073 - Detectar solo en IF (más simple)
+  logic ebreak_found;
+  assign ebreak_found = (instruction == 32'h00100073);
+  
+  // Una vez que detectamos EBREAK, nos quedamos detenidos
+  always_ff @(posedge clk) begin
+    if (reset) begin
+      halt_detected <= 1'b0;
+      br_op_display <= 5'b00000;
+    end else begin
+      // Cuando encontramos EBREAK, activamos halt
+      if (ebreak_found)
+        halt_detected <= 1'b1;
+      
+      // Actualizamos br_op_display
+      if (ebreak_found)
+        br_op_display <= 5'b11000;      // Código de EBREAK
+      else if (!halt_detected)
+        br_op_display <= br_op;         // Seguir instrucción actual
+    end
+  end
   
   // ============================================================
   // REGISTROS DE PIPELINE
@@ -90,22 +118,22 @@ module pipeline (
   logic [31:0] pc_plus4;
   logic [31:0] instruction;
   logic [31:0] branch_target;
-  logic        reset_high; // Reset activo en alto para el módulo PC
+  logic        reset_high;
   
   assign pc_plus4 = pc_current + 32'd4;
-  assign reset_high = reset; // Ya está invertido desde KEY[1]
+  assign reset_high = reset;
   
   // PC Selection (branch tiene prioridad)
   assign pc_next = take_branch ? branch_target : pc_plus4;
   
   // ============================================================
-  // MÓDULO PC INTEGRADO
+  // MÓDULO PC CON HALT
   // ============================================================
-  logic [31:0] pc_input;
-  assign pc_input = (pc_write_enable && !reset) ? pc_next : pc_current;
+  logic pc_should_update;
+  assign pc_should_update = pc_write_enable && !halt_detected;
   
   pc program_counter (
-    .next_address(pc_input),
+    .next_address(pc_should_update ? pc_next : pc_current),
     .clk(clk),
     .reset(reset_high),
     .initial_address(32'h00000000),
@@ -129,7 +157,7 @@ module pipeline (
       IF_ID_pc_plus4 <= 32'd0;
       IF_ID_instruction <= 32'h00000013;  // NOP
       IF_ID_valid <= 1'b0;
-    end else if (!stall_pipeline) begin
+    end else if (!stall_pipeline && !halt_detected) begin
       IF_ID_pc <= pc_current;
       IF_ID_pc_plus4 <= pc_plus4;
       IF_ID_instruction <= instruction;
@@ -302,7 +330,7 @@ module pipeline (
       ID_EX_ru_data_src <= 2'd0;
       ID_EX_valid <= 1'b0;
       ID_EX_instruction <= 32'h00000013;
-    end else if (!stall_pipeline) begin
+    end else if (!stall_pipeline && !halt_detected) begin
       ID_EX_pc <= IF_ID_pc;
       ID_EX_pc_plus4 <= IF_ID_pc_plus4;
       ID_EX_rs1_data <= rs1_data;
@@ -352,7 +380,7 @@ module pipeline (
   );
   
   // ============================================================
-  // BRANCH DECISION UNIT (Modularizado)
+  // BRANCH DECISION UNIT
   // ============================================================
   branch_decision_unit branch_unit (
     .rs1_data(ID_EX_rs1_data),
@@ -381,7 +409,7 @@ module pipeline (
       EX_MEM_ru_data_src <= 2'd0;
       EX_MEM_valid <= 1'b0;
       EX_MEM_instruction <= 32'h00000013;
-    end else begin
+    end else if (!halt_detected) begin
       EX_MEM_pc_plus4 <= ID_EX_pc_plus4;
       EX_MEM_alu_result <= alu_result;
       EX_MEM_rs2_data <= ID_EX_rs2_data;
@@ -424,7 +452,7 @@ module pipeline (
       MEM_WB_ru_data_src <= 2'd0;
       MEM_WB_valid <= 1'b0;
       MEM_WB_instruction <= 32'h00000013;
-    end else begin
+    end else if (!halt_detected) begin
       MEM_WB_alu_result <= EX_MEM_alu_result;
       MEM_WB_mem_data <= mem_read_data;
       MEM_WB_pc_plus4 <= EX_MEM_pc_plus4;
@@ -466,7 +494,7 @@ module pipeline (
     .changed_mask(reg_changed_mask),
     .pc_value(pc_current),
     .instruction(IF_ID_instruction),
-    .br_op(br_op),
+    .br_op(br_op_display),  // Usar la señal que mantiene EBREAK visible
     .alu_operand_a(alu_operand_a),
     .alu_operand_b(alu_operand_b),
     .alu_result(alu_result),
@@ -508,8 +536,8 @@ module pipeline (
 
   // LEDs para debug
   assign LEDR[7:0] = pc_current[7:0];
-  assign LEDR[8] = stall_pipeline;
-  assign LEDR[9] = take_branch;
+  assign LEDR[8] = halt_detected;  // LED 8 indica HALT
+  assign LEDR[9] = (br_op_display == 5'b11000);  // LED 9 indica si br_op_display tiene EBREAK
   
   // 7-Segment displays
   hex_to_7seg d0 (.hex(IF_ID_instruction[3:0]),   .seg(HEX0));
