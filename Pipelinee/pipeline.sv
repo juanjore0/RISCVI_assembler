@@ -2,6 +2,7 @@
 // pipeline_riscv.sv - Procesador RISC-V con Pipeline FUNCIONAL
 // IF -> ID -> EX -> MEM -> WB
 // Con Forwarding, Hazard Detection, Branch Handling y HALT
+// Incluye divisor de frecuencia 50MHz -> 2MHz
 // ============================================================
 
 module pipeline (
@@ -16,9 +17,33 @@ module pipeline (
   output logic        VGA_HS, VGA_VS, VGA_CLK
 );
 
+  // ============================================================
+  // DIVISOR DE FRECUENCIA Y CONTROL DE RELOJ
+  // ============================================================
   logic clk, reset;
-  assign clk = SW[0] ? CLOCK_50 : ~KEY[0]; // SW[0]: 1=reloj placa, 0=reloj manual
+  logic clk_divided;
+  logic [4:0] clk_counter;
+  
   assign reset = ~KEY[1];
+  
+  // Divisor de frecuencia: 50 MHz → 2 MHz (factor 25)
+  always_ff @(posedge CLOCK_50 or posedge reset) begin
+    if (reset) begin
+      clk_counter <= 5'd0;
+      clk_divided <= 1'b0;
+    end else begin
+      if (clk_counter == 5'd24) begin  // Cuenta hasta 24 (0 a 24 = 25 ciclos)
+        clk_counter <= 5'd0;
+        clk_divided <= ~clk_divided;   // Toggle cada 25 ciclos
+      end else begin
+        clk_counter <= clk_counter + 1'b1;
+      end
+    end
+  end
+  
+  // Selector de reloj
+  // SW[0]: 0=reloj manual (KEY[0]), 1=reloj automático 2MHz
+  assign clk = SW[0] ? clk_divided : ~KEY[0];
   
   // ============================================================
   // SEÑAL DE HALT (DETECCIÓN DE EBREAK)
@@ -494,7 +519,7 @@ module pipeline (
     .changed_mask(reg_changed_mask),
     .pc_value(pc_current),
     .instruction(IF_ID_instruction),
-    .br_op(br_op_display),  // Usar la señal que mantiene EBREAK visible
+    .br_op(br_op_display),
     .alu_operand_a(alu_operand_a),
     .alu_operand_b(alu_operand_b),
     .alu_result(alu_result),
@@ -536,8 +561,8 @@ module pipeline (
 
   // LEDs para debug
   assign LEDR[7:0] = pc_current[7:0];
-  assign LEDR[8] = halt_detected;  // LED 8 indica HALT
-  assign LEDR[9] = (br_op_display == 5'b11000);  // LED 9 indica si br_op_display tiene EBREAK
+  assign LEDR[8] = halt_detected;
+  assign LEDR[9] = clk_divided;  // LED 9 muestra el reloj dividido
   
   // 7-Segment displays
   hex_to_7seg d0 (.hex(IF_ID_instruction[3:0]),   .seg(HEX0));
