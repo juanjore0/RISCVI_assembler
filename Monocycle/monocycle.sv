@@ -31,14 +31,34 @@ module monocycle (
   // ========== SEÑALES DE CONTROL ==========
   logic        clk;
   logic        reset;
+  logic        clk_divided;      
+  logic [4:0]  clk_counter;      
 
   logic        show_result;
   logic        show_high_bits;
   
-  assign clk = SW[0] ? CLOCK_50 : ~KEY[0]; // SW[0]: 0=reloj placa, 1=reloj manual
-  assign reset = ~KEY[1];            // KEY[1] como reset
-  assign show_result = SW[9];        // SW[9]: 0=instrucción, 1=resultado
-  assign show_high_bits = SW[8];     // SW[8]: 0=bits[15:0], 1=bits[31:16]
+  assign reset = ~KEY[1];
+
+  // ========== DIVISOR DE FRECUENCIA ==========
+  // Divide 50 MHz → 2 MHz (factor 25)
+  always_ff @(posedge CLOCK_50 or posedge reset) begin
+    if (reset) begin
+      clk_counter <= 5'd0;
+      clk_divided <= 1'b0;
+    end else begin
+      if (clk_counter == 5'd24) begin  // Cuenta hasta 24 (0 a 24 = 25 ciclos)
+        clk_counter <= 5'd0;
+        clk_divided <= ~clk_divided;   // Toggle cada 25 ciclos
+      end else begin
+        clk_counter <= clk_counter + 1'b1;
+      end
+    end
+  end
+
+  // Selector de reloj
+  assign clk = SW[0] ? clk_divided : ~KEY[0]; // SW[0]: 0=manual, 1=2MHz automático
+  assign show_result = SW[9];
+  assign show_high_bits = SW[8];
   
   // ========== SEÑALES DEL PROCESADOR ==========
   logic [31:0] pc_current;
