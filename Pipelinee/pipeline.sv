@@ -46,22 +46,26 @@ module pipeline (
   assign clk = SW[0] ? clk_divided : ~KEY[0];
   
   // ============================================================
-  // SEÑAL DE HALT (DETECCIÓN DE EBREAK)
+  // SEÑAL DE HALT (DETECCIÓN DE EBREAK) - CORREGIDO
   // ============================================================
   logic halt_detected;
-  logic [4:0] br_op_display;  // Para el display
+  logic [4:0] br_op_display;
   
-  // EBREAK = 0x00100073 - Detectar solo en IF (más simple)
+  // CORRECCIÓN 1: Detectar EBREAK en etapa ID (Decode), no en Fetch.
+  // Esto evita que se detecte un ebreak que debería haber sido saltado (flushed).
+  // Usamos IF_ID_instruction que se define más abajo (SystemVerilog permite esto o muévelo abajo).
   logic ebreak_found;
-  assign ebreak_found = (instruction == 32'h00100073);
+  // Verificamos que sea la instrucción EBREAK Y que la etapa sea válida (no sea una burbuja/NOP)
+  assign ebreak_found = (IF_ID_instruction == 32'h00100073) && IF_ID_valid;
   
-  // Una vez que detectamos EBREAK, nos quedamos detenidos
-  always_ff @(posedge clk) begin
+  // CORRECCIÓN 2: Reset Asíncrono (posedge reset)
+  // Esto permite destrabar el procesador inmediatamente al pulsar reset, incluso sin clock.
+  always_ff @(posedge clk or posedge reset) begin
     if (reset) begin
       halt_detected <= 1'b0;
       br_op_display <= 5'b00000;
     end else begin
-      // Cuando encontramos EBREAK, activamos halt
+      // Cuando encontramos EBREAK en la etapa ID, activamos halt
       if (ebreak_found)
         halt_detected <= 1'b1;
       
@@ -72,6 +76,7 @@ module pipeline (
         br_op_display <= br_op;         // Seguir instrucción actual
     end
   end
+
   
   // ============================================================
   // REGISTROS DE PIPELINE
